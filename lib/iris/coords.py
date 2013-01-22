@@ -310,7 +310,8 @@ class Coord(CFVariableMixin):
         * attributes
             A dictionary containing other cf and user-defined attributes.
         * coord_system
-            A :class:`~iris.coord_systems.CoordSystem`, e.g a :class:`~iris.coord_systems.GeogCS` for a longitude Coord.
+            A :class:`~iris.coord_systems.CoordSystem`,
+            e.g. a :class:`~iris.coord_systems.GeogCS` for a longitude Coord.
 
         """
         self.standard_name = standard_name
@@ -323,7 +324,8 @@ class Coord(CFVariableMixin):
         """Unit of the quantity that the coordinate represents."""
 
         self.attributes = attributes
-        """Other attributes, including user specified attributes that have no meaning to Iris."""
+        """Other attributes, including user specified attributes that have no
+        meaning to Iris."""
 
         self.coord_system = coord_system
         """Relevant CoordSystem (if any)."""    
@@ -336,8 +338,9 @@ class Coord(CFVariableMixin):
         Returns a new Coord whose values are obtained by conventional array indexing.
 
         .. note:: 
-            Indexing of a circular coordinate results in a non-circular coordinate
-            if the overall shape of the coordinate changes after indexing.
+            Indexing of a circular coordinate results in a non-circular
+            coordinate if the overall shape of the coordinate changes after
+            indexing.
 
         """
         # Turn the key(s) into a full slice spec - i.e. one entry for
@@ -414,16 +417,40 @@ class Coord(CFVariableMixin):
     def bounds(self):
         """Property containing the bound values as a numpy array"""
 
-    def _format_metadata(self):
-        result = "standard_name=%r, units=%r" % (self.standard_name, self.units)
+    def _format_metadata(self, humanfmt=False):
+        """Construct coordinate specific formated metadata for printing"""
+        if humanfmt and self.units.time_reference:
+            result = "standard_name=%r, calendar=%r" % (self.standard_name,
+                                                        self.units.calendar)
+        elif humanfmt:
+            result = "standard_name=%s, units=%s" % (self.standard_name,
+                                                     self.units)
+        else:
+            result = "standard_name=%r, units=%r" % (self.standard_name,
+                                                     self.units)
         if self.long_name:
             result += ', long_name=%r' % self.long_name
         if len(self.attributes) > 0:
             result += ", attributes=" + str(self.attributes)
         if self.coord_system:
             result += ", coord_system=" + str(self.coord_system)
+            
         return result
-    
+
+    def __str__(self):
+        if self.units.time_reference:
+            result = '%s(%s' % (self.__class__.__name__,
+                                repr(self.units.num2date(self.points))[6:-15])
+                                
+            if self.bounds is not None:
+                result += ', bounds=%s' % self.units.num2date(self.bounds)
+                
+            result += ', %s)' % self._format_metadata(humanfmt=True)
+        else:
+            result = self.__repr__()
+
+        return result
+
     def __repr__(self):
         result = '%s(%r' % (self.__class__.__name__, self.points)
         if self.bounds is not None:
@@ -993,7 +1020,7 @@ class DimCoord(Coord):
         return result
     
     # The __ne__ operator from Coord implements the not __eq__ method.
-    
+
     def __getitem__(self, key):
         coord = super(DimCoord, self).__getitem__(key)
         coord.circular = self.circular and coord.shape == self.shape
@@ -1010,8 +1037,8 @@ class DimCoord(Coord):
         coord.circular = False
         return coord
     
-    def _format_metadata(self):
-        result = Coord._format_metadata(self)
+    def _format_metadata(self, humanfmt=False):
+        result = Coord._format_metadata(self, humanfmt=humanfmt)
         if self.circular:
             result += ', circular=%r' % self.circular
         return result
