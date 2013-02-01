@@ -417,47 +417,50 @@ class Coord(CFVariableMixin):
     def bounds(self):
         """Property containing the bound values as a numpy array"""
 
-    def _format_metadata(self, humanfmt=False):
-        """Construct coordinate specific formated metadata for printing"""
-        if humanfmt and self.units.time_reference:
-            result = "standard_name=%r, calendar=%r" % (self.standard_name,
-                                                        self.units.calendar)
-        elif humanfmt:
-            result = "standard_name=%s, units=%s" % (self.standard_name,
-                                                     self.units)
-        else:
-            result = "standard_name=%r, units=%r" % (self.standard_name,
-                                                     self.units)
+    def _repr_other_metadata(self):
+        fmt = ''
         if self.long_name:
-            result += ', long_name=%r' % self.long_name
+            fmt = ', long_name={self.long_name!r}'
         if len(self.attributes) > 0:
-            result += ", attributes=" + str(self.attributes)
+            fmt += ', attributes={self.attributes}'
         if self.coord_system:
-            result += ", coord_system=" + str(self.coord_system)
-            
+            fmt += ', coord_system={self.coord_system}'
+        result = fmt.format(self=self)
         return result
+
+    def _str_dates(self, dates_as_numbers):
+        # Chop off the 'array(' prefix and the ', dtype=object)'
+        # suffix.
+        return repr(self.units.num2date(dates_as_numbers))[6:-15]
 
     def __str__(self):
         if self.units.time_reference:
-            result = '%s(%s' % (self.__class__.__name__,
-                                repr(self.units.num2date(self.points))[6:-15])
-                                
+            fmt = '{cls}({points}{bounds}' \
+                  ', standard_name={self.standard_name!r}' \
+                  ', calendar={self.units.calendar!r}{other_metadata})'
+            points = self._str_dates(self.points)
+            bounds = ''
             if self.bounds is not None:
-                result += ', bounds=%s' % self.units.num2date(self.bounds)
-                
-            result += ', %s)' % self._format_metadata(humanfmt=True)
+                bounds = ', bounds=' + self._str_dates(self.bounds)
+            result = fmt.format(self=self, cls=type(self).__name__,
+                                points=points, bounds=bounds,
+                                other_metadata=self._repr_other_metadata())
         else:
-            result = self.__repr__()
-
+            result = repr(self)
         return result
 
     def __repr__(self):
-        result = '%s(%r' % (self.__class__.__name__, self.points)
+        fmt = '{cls}({self.points!r}{bounds}' \
+              ', standard_name={self.standard_name!r}, units={self.units!r}' \
+              '{other_metadata})'
+        bounds = ''
         if self.bounds is not None:
-            result += ', bounds=%r' % self.bounds
-        result += ', %s)' % self._format_metadata()
+            bounds = ', bounds=' + repr(self.bounds)
+        result = fmt.format(self=self, cls=type(self).__name__,
+                            bounds=bounds,
+                            other_metadata=self._repr_other_metadata())
         return result
-    
+
     def __eq__(self, other):
         eq = NotImplemented
         # if the other object has a means of getting its definition, and whether
@@ -1036,13 +1039,13 @@ class DimCoord(Coord):
         # XXX This isn't actually correct, but is ported from the old world.
         coord.circular = False
         return coord
-    
-    def _format_metadata(self, humanfmt=False):
-        result = Coord._format_metadata(self, humanfmt=humanfmt)
+
+    def _repr_other_metadata(self):
+        result = Coord._repr_other_metadata(self)
         if self.circular:
             result += ', circular=%r' % self.circular
         return result
-    
+
     @property
     def points(self):
         """The local points values as a read-only NumPy array."""
