@@ -1,0 +1,16 @@
+dimensions:
+	dim0 = UNLIMITED ; // (2 currently)
+	dim1 = 2 ;
+	dim0_0 = 1 ;
+	dim2 = 2 ;
+variables:
+	double temp(dim0, dim1) ;
+		temp:standard_name = "surface_temperature" ;
+		temp:units = "K" ;
+	double temp2(dim0_0, dim1, dim2) ;
+		temp2:long_name = "Something Random" ;
+		temp2:units = "K" ;
+
+// global attributes:
+		:Conventions = "CF-1.5" ;
+}
