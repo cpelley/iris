@@ -183,6 +183,26 @@ class TestNetCDFSave(tests.IrisTest):
                                     long_name='Something Random',
                                     var_name='temp2',
                                     units='K')
+        self.cube3 = iris.cube.Cube(np.ones([2, 2, 2]),
+                                    standard_name=None,
+                                    long_name='Something Random',
+                                    var_name='temp3',
+                                    units='K')
+        self.cube4 = iris.cube.Cube(np.zeros([10]),
+                                   standard_name='air_temperature',
+                                   long_name=None,
+                                   var_name='temp',
+                                   units='K')
+        self.cube5 = iris.cube.Cube(np.ones([20]),
+                                    standard_name=None,
+                                    long_name='air_temperature',
+                                    var_name='temp2',
+                                    units='K')
+        self.cube6 = iris.cube.Cube(np.ones([10]),
+                                    standard_name=None,
+                                    long_name='air_temperature',
+                                    var_name='temp3',
+                                    units='K')
 
     def test_netcdf_save_format(self):
         # Read netCDF input file.
@@ -281,7 +301,7 @@ class TestNetCDFSave(tests.IrisTest):
 
     def test_netcdf_multi_nocoord(self):
         # Testing the saving of a cublist with no coords.
-        cubes = iris.cube.CubeList([self.cube, self.cube2])
+        cubes = iris.cube.CubeList([self.cube, self.cube2, self.cube3])
         file_out = iris.util.create_temp_filename(suffix='.nc')
         iris.save(cubes, file_out)
 
@@ -323,6 +343,26 @@ class TestNetCDFSave(tests.IrisTest):
 
         # Check the netCDF file against CDL expected output.
         self.assertCDL(file_out, ('netcdf', 'netcdf_save_wcoord.cdl'))
+        os.remove(file_out)
+
+    def test_netcdf_multi_wtih_samedimcoord(self):
+        time1 = iris.coords.DimCoord(np.arange(10),
+                     standard_name = 'time',
+                     var_name = 'time')
+        time2 = iris.coords.DimCoord(np.arange(20),
+                             standard_name = 'time',
+                             var_name = 'time')
+
+        self.cube4.add_dim_coord(time1, 0)
+        self.cube5.add_dim_coord(time2, 0)
+        self.cube6.add_dim_coord(time1, 0)
+
+        cubes = iris.cube.CubeList([self.cube4, self.cube5, self.cube6])
+        file_out = iris.util.create_temp_filename(suffix='.nc')
+        iris.save(cubes, file_out)
+
+        # Check the netCDF file against CDL expected output.
+        self.assertCDL(file_out, ('netcdf', 'netcdf_save_samedimcoord.cdl'))
         os.remove(file_out)
 
     def test_netcdf_hybrid_height(self):

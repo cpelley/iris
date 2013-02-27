@@ -10,6 +10,9 @@ variables:
 	double temp2(dim0_0, dim1, dim2) ;
 		temp2:long_name = "Something Random" ;
 		temp2:units = "K" ;
+	double temp3(dim0, dim1, dim2) ;
+		temp3:long_name = "Something Random" ;
+		temp3:units = "K" ;
 
 // global attributes:
 		:Conventions = "CF-1.5" ;
