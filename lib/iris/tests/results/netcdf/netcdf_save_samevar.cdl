@@ -1,7 +1,7 @@
 dimensions:
 	dim0 = UNLIMITED ; // (2 currently)
 	dim1 = 2 ;
-	dim0_0 = 1 ;
+	dim0_0 = UNLIMITED ; // (1 currently)
 	dim2 = 2 ;
 variables:
 	double temp(dim0, dim1) ;

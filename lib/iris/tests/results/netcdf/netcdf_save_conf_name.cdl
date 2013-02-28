@@ -1,6 +1,6 @@
 dimensions:
 	time = UNLIMITED ; // (10 currently)
-	time_0 = UNLIMITED ; // (20 currently)
+	dim0 = UNLIMITED ; // (10 currently)
 variables:
 	double temp(time) ;
 		temp:standard_name = "air_temperature" ;
@@ -8,15 +8,13 @@ variables:
 	int64 time(time) ;
 		time:units = "1" ;
 		time:standard_name = "time" ;
-	double temp2(time_0) ;
-		temp2:long_name = "air_temperature" ;
-		temp2:units = "K" ;
-	int64 time_0(time_0) ;
-		time_0:units = "1" ;
-		time_0:standard_name = "time" ;
-	double temp3(time) ;
+	double temp3(dim0) ;
 		temp3:long_name = "air_temperature" ;
 		temp3:units = "K" ;
+		temp3:coordinates = "time_0" ;
+	int64 time_0 ;
+		time_0:units = "1" ;
+		time_0:standard_name = "time" ;
 
 // global attributes:
 		:Conventions = "CF-1.5" ;

@@ -1,7 +1,7 @@
 dimensions:
 	lon = UNLIMITED ; // (2 currently)
 	lat = 2 ;
-	dim0 = 1 ;
+	dim0 = UNLIMITED ; // (1 currently)
 variables:
 	double temp(lon, lat) ;
 		temp:standard_name = "surface_temperature" ;

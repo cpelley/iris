@@ -31,6 +31,7 @@ import numpy.ma as ma
 import iris
 import iris.std_names
 import iris.util
+import iris.coord_systems as icoord_systems
 import stock
 
 
@@ -173,6 +174,8 @@ class TestSave(tests.IrisTest):
 @iris.tests.skip_data
 class TestNetCDFSave(tests.IrisTest):
     def setUp(self):
+        self.cubell = iris.cube.Cube(np.arange(4).reshape(2, 2),
+                                     'air_temperature')
         self.cube = iris.cube.Cube(np.zeros([2, 2]),
                                    standard_name='surface_temperature',
                                    long_name=None,
@@ -408,6 +411,74 @@ class TestNetCDFSave(tests.IrisTest):
         # Check the netCDF read, write, read mechanism.
         self.assertCML(cube, ('netcdf', 'netcdf_save_load_ndim_auxiliary.cml'))
 
+        os.remove(file_out)
+
+    def test_netcdf_save_conflicting_aux(self):
+        # Test saving CF-netCDF with multi-dimensional auxiliary coordinates,
+        # with conflicts.
+        self.cube4.add_aux_coord(iris.coords.AuxCoord(np.arange(10), 'time'), 0)
+        self.cube6.add_aux_coord(iris.coords.AuxCoord(np.arange(10, 20), 'time'), 0)
+
+        cubes = iris.cube.CubeList([self.cube4, self.cube6])
+        file_out = iris.util.create_temp_filename(suffix='.nc')
+        iris.save(cubes, file_out)
+
+        # Check the netCDF file against CDL expected output.
+        self.assertCDL(file_out, ('netcdf', 'netcdf_save_conf_aux.cdl'))
+        os.remove(file_out)
+
+    def test_netcdf_save_gridmapping(self):
+        # Test saving CF-netCDF from a cubelist with various grid mappings.
+
+        c1 = self.cubell
+        c2 = self.cubell.copy()
+        c3 = self.cubell.copy()
+
+        coord_system = icoord_systems.GeogCS(6371229)
+        coord_system2 = icoord_systems.GeogCS(6371228)
+        coord_system3 = icoord_systems.RotatedGeogCS(30, 30)
+
+        c1.add_dim_coord(iris.coords.DimCoord(
+            np.arange(1, 3), 'latitude', long_name='1',
+            coord_system=coord_system), 1)
+        c1.add_dim_coord(iris.coords.DimCoord(
+            np.arange(1, 3), 'longitude', long_name='1',
+            coord_system=coord_system), 0)
+
+        c2.add_dim_coord(iris.coords.DimCoord(
+            np.arange(1, 3), 'latitude', long_name='2',
+            coord_system=coord_system2), 1)
+        c2.add_dim_coord(iris.coords.DimCoord(
+            np.arange(1, 3), 'longitude', long_name='2',
+            coord_system=coord_system2), 0)
+
+        c3.add_dim_coord(iris.coords.DimCoord(
+            np.arange(1, 3), 'grid_latitude', long_name='3',
+            coord_system=coord_system3), 1)
+        c3.add_dim_coord(iris.coords.DimCoord(
+            np.arange(1, 3), 'grid_longitude', long_name='3',
+            coord_system=coord_system3), 0)
+
+        cubes = iris.cube.CubeList([c1, c2, c3])
+        file_out = iris.util.create_temp_filename(suffix='.nc')
+        iris.save(cubes, file_out)
+
+        # Check the netCDF file against CDL expected output.
+        self.assertCDL(file_out, ('netcdf', 'netcdf_save_gridmapmulti.cdl'))
+        os.remove(file_out)
+
+    def test_netcdf_save_conflicting_names(self):
+        # Test saving CF-netCDF with a dimension name corresponding to
+        # an existing variable name (conflict).
+        self.cube4.add_dim_coord(iris.coords.DimCoord(np.arange(10), 'time'), 0)
+        self.cube6.add_aux_coord(iris.coords.AuxCoord(1, 'time'), None)
+
+        cubes = iris.cube.CubeList([self.cube4, self.cube6])
+        file_out = iris.util.create_temp_filename(suffix='.nc')
+        iris.save(cubes, file_out)
+
+        # Check the netCDF file against CDL expected output.
+        self.assertCDL(file_out, ('netcdf', 'netcdf_save_conf_name.cdl'))
         os.remove(file_out)
 
     def test_trajectory(self):
