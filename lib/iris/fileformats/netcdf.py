@@ -338,406 +338,7 @@ def load_cubes(filenames, callback=None):
                 yield cube
 
 
-def _cf_coord_identity(coord):
-    """Return (standard_name, long_name, unit) of the given :class:`iris.coords.Coord` instance."""
-
-    units = str(coord.units)
-
-    # TODO: Use #61 to get the units.
-    if isinstance(coord.coord_system, iris.coord_systems.GeogCS):
-        if "latitude" in coord.standard_name:
-            units = 'degrees_north'
-        elif "longitude" in coord.standard_name:
-            units = 'degrees_east'
-
-    elif isinstance(coord.coord_system, iris.coord_systems.RotatedGeogCS):
-        units = 'degrees'
-
-    elif isinstance(coord.coord_system, iris.coord_systems.TransverseMercator):
-        units = 'm'
-
-    return coord.standard_name, coord.long_name, units
-
-
-def _create_bounds(dataset, coord, cf_var, cf_name):
-    if coord.has_bounds():
-        n_bounds = coord.bounds.shape[-1]
-
-        if n_bounds == 2:
-            bounds_dimension_name = 'bnds'
-        else:
-            bounds_dimension_name = 'bnds_%s' % n_bounds
-
-        if bounds_dimension_name not in dataset.dimensions:
-            # Create the bounds dimension with the appropriate extent.
-            dataset.createDimension(bounds_dimension_name, n_bounds)
-
-        cf_var.bounds = cf_name + '_bnds'
-        cf_var_bounds = dataset.createVariable(cf_var.bounds, coord.bounds.dtype, cf_var.dimensions + (bounds_dimension_name,))
-        cf_var_bounds[:] = coord.bounds
-
-
-def _cube_netcdf_variable_name(cube):
-    """
-    Returns a CF-netCDF variable name for the given cube.
-
-    Args:
-
-    * cube (class:`iris.cube.Cube`):
-        An instance of a cube for which a CF-netCDF variable
-        name is required.
-
-    Returns:
-        A CF-netCDF variable name as a string.
-
-    """
-    if cube.var_name is not None:
-        cf_name = cube.var_name
-    else:
-        # Convert to lower case and replace whitespace by underscores.
-        cf_name = '_'.join(cube.name().lower().split())
-
-    return cf_name
-
-
-def _coord_netcdf_variable_name(cube, coord):
-    """
-    Returns a CF-netCDF variable name for the given coordinate.
-
-    Args:
-
-    * cube (:class:`iris.cube.Cube`):
-        The cube that contains the given coordinate.
-
-    * coord (:class:`iris.coords.Coord`):
-        An instance of a coordinate for which a CF-netCDF variable
-        name is required.
-
-    Returns:
-        A CF-netCDF variable name as a string.
-
-    """
-    if coord.var_name is not None:
-        cf_name = coord.var_name
-    else:
-        name = coord.standard_name or coord.long_name
-        if not name or set(name).intersection(string.whitespace):
-            # Auto-generate name based on associated dimensions.
-            name = ''
-            for dim in cube.coord_dims(coord):
-                name += 'dim{}'.format(dim)
-            # Handle scalar coordinate (dims == ()).
-            if not name:
-                name = 'unknown_scalar'
-        # Convert to lower case and replace whitespace by underscores.
-        cf_name = '_'.join(name.lower().split())
-
-    return cf_name
-
-
-def _create_cf_variable(dataset, cube, dimension_names, coord, factory_defn):
-    """
-    Create the associated CF-netCDF variable in the netCDF dataset for the
-    given coordinate. If required, also create the CF-netCDF bounds variable
-    and associated dimension.
-
-    Args:
-
-    * dataset (:class:`netCDF4.Dataset`):
-        The CF-netCDF data file being created.
-    * cube (:class:`iris.cube.Cube`):
-        The associated cube being saved to CF-netCDF file.
-    * dimension_names:
-        List of string names for each dimension of the cube.
-    * coord (:class:`iris.coords.Coord`):
-        The coordinate to be saved to CF-netCDF file.
-    * factory_defn (:class:`_FactoryDefn`):
-        An optional description of the AuxCoordFactory relevant to this
-        cube.
-
-    Returns:
-        The string name of the associated CF-netCDF variable saved.
-    """
-    cf_name = _coord_netcdf_variable_name(cube, coord)
-    while cf_name in dataset.variables:
-        cf_name = _increment_name(cf_name)
-
-    # Derive the data dimension names for the coordinate.
-    cf_dimensions = [dimension_names[dim] for dim in cube.coord_dims(coord)]
-
-    if np.issubdtype(coord.points.dtype, np.str):
-        string_dimension_depth = coord.points.dtype.itemsize
-        string_dimension_name = 'string%d' % string_dimension_depth
-
-        # Determine whether to create the string length dimension.
-        if string_dimension_name not in dataset.dimensions:
-            dataset.createDimension(string_dimension_name, string_dimension_depth)
-
-        # Add the string length dimension to dimension names.
-        cf_dimensions.append(string_dimension_name)
-
-        # Create the label coordinate variable.
-        cf_var = dataset.createVariable(cf_name, '|S1', cf_dimensions)
-
-        # Add the payload to the label coordinate variable.
-        if len(cf_dimensions) == 1:
-            cf_var[:] = list('%- *s' % (string_dimension_depth, coord.points[0]))
-        else:
-            for index in np.ndindex(coord.points.shape):
-                index_slice = tuple(list(index) + [slice(None, None)])
-                cf_var[index_slice] = list('%- *s' % (string_dimension_depth, coord.points[index]))
-    else:
-        # Identify the collection of coordinates that represent CF-netCDF coordinate variables.
-        cf_coordinates = cube.dim_coords
-
-        if coord in cf_coordinates:
-            # By definition of a CF-netCDF coordinate variable this coordinate must be 1-D
-            # and the name of the CF-netCDF variable must be the same as its dimension name.
-            cf_name = cf_dimensions[0]
-
-        # Create the CF-netCDF variable.
-        cf_var = dataset.createVariable(cf_name, coord.points.dtype, cf_dimensions)
-
-        # Add the axis attribute for spatio-temporal CF-netCDF coordinates.
-        if coord in cf_coordinates:
-            axis = iris.util.guess_coord_axis(coord)
-            if axis is not None and axis.lower() in SPATIO_TEMPORAL_AXES:
-                cf_var.axis = axis.upper()
-
-        # Add the data to the CF-netCDF variable.
-        cf_var[:] = coord.points
-
-        # Create the associated CF-netCDF bounds variable.
-        _create_bounds(dataset, coord, cf_var, cf_name)
-
-    # Deal with CF-netCDF units and standard name.
-    standard_name, long_name, units = _cf_coord_identity(coord)
-
-    # If this coordinate should describe a dimensionless vertical
-    # coordinate, then override `standard_name`, `long_name`, and `axis`,
-    # and also set the `formula_terms` attribute.
-    if factory_defn:
-        dependencies = cube.aux_factories[0].dependencies
-        if coord is dependencies[factory_defn.primary]:
-            standard_name = factory_defn.std_name
-            cf_var.axis = 'Z'
-
-            fmt = factory_defn.formula_terms_format
-            names = {key: coord.name() for key, coord in
-                            dependencies.iteritems()}
-            formula_terms = fmt.format(**names)
-            cf_var.formula_terms = formula_terms
-
-    if units != 'unknown':
-        cf_var.units = units
-
-    if standard_name is not None:
-        cf_var.standard_name = standard_name
-
-    if long_name is not None:
-        cf_var.long_name = long_name
-
-    # Add the CF-netCDF calendar attribute.
-    if coord.units.calendar:
-        cf_var.calendar = coord.units.calendar
-
-    # Add any other custom coordinate attributes.
-    for name in sorted(coord.attributes):
-        value = coord.attributes[name]
-
-        if name == 'STASH':
-            # Adopting provisional Metadata Conventions for representing MO Scientific Data encoded in NetCDF Format.
-            name = 'ukmo__um_stash_source'
-            value = str(value)
-
-        # Don't clobber existing attributes.
-        if not hasattr(cf_var, name):
-            setattr(cf_var, name, value)
-
-    return cf_name
-
-
-def _create_cf_cell_methods(cube, dimension_names):
-    """Create CF-netCDF string representation of a cube cell methods."""
-    cell_methods = []
-
-    # Identify the collection of coordinates that represent CF-netCDF coordinate variables.
-    cf_coordinates = cube.dim_coords
-
-    for cm in cube.cell_methods:
-        names = ''
-
-        for name in cm.coord_names:
-            coord = cube.coords(name)
-
-            if coord:
-                coord = coord[0]
-                if coord in cf_coordinates:
-                    name = dimension_names[cube.coord_dims(coord)[0]]
-
-            names += '%s: ' % name
-
-        interval = ' '.join(['interval: %s' % interval for interval in cm.intervals or []])
-        comment = ' '.join(['comment: %s' % comment for comment in cm.comments or []])
-        extra = ' '.join([interval, comment]).strip()
-
-        if extra:
-            extra = ' (%s)' % extra
-
-        cell_methods.append(names + cm.method + extra)
-
-    return ' '.join(cell_methods)
-
-
-def _create_cf_grid_mapping(dataset, cube, cf_var, existing):
-    """
-    Create CF-netCDF grid mapping variable and associated CF-netCDF
-    data variable grid mapping attribute.
-
-    """
-    # TODO: What if there's more than one CoordSystem?
-    cs = cube.coord_system('CoordSystem')
-    if cs is not None:
-        # Grid var not yet created?
-        if cs not in existing:
-            while cs.grid_mapping_name in dataset.variables:
-                cs.grid_mapping_name = _increment_name(cs.grid_mapping_name)
-                
-            cf_var_grid = dataset.createVariable(cs.grid_mapping_name, np.int32)
-            cf_var_grid.grid_mapping_name = cs.grid_mapping_name
-
-            # latlon
-            if isinstance(cs, iris.coord_systems.GeogCS):
-                cf_var_grid.longitude_of_prime_meridian = cs.longitude_of_prime_meridian
-                cf_var_grid.semi_major_axis = cs.semi_major_axis
-                cf_var_grid.semi_minor_axis = cs.semi_minor_axis
-
-            # rotated latlon
-            elif isinstance(cs, iris.coord_systems.RotatedGeogCS):
-                if cs.ellipsoid:
-                    cf_var_grid.longitude_of_prime_meridian = cs.ellipsoid.longitude_of_prime_meridian
-                    cf_var_grid.semi_major_axis = cs.ellipsoid.semi_major_axis
-                    cf_var_grid.semi_minor_axis = cs.ellipsoid.semi_minor_axis
-                cf_var_grid.grid_north_pole_latitude = cs.grid_north_pole_latitude
-                cf_var_grid.grid_north_pole_longitude = cs.grid_north_pole_longitude
-                cf_var_grid.north_pole_grid_longitude = cs.north_pole_grid_longitude
-
-            # tmerc
-            elif isinstance(cs, iris.coord_systems.TransverseMercator):
-                warnings.warn('TransverseMercator coordinate system not yet '
-                              'handled')
-
-            # osgb (a specific tmerc)
-            elif isinstance(cs, iris.coord_systems.OSGB):
-                warnings.warn('OSGB coordinate system not yet handled')
-
-            # other
-            else:
-                warnings.warn('Unable to represent the horizontal coordinate '
-                              'system. The coordinate system type %r is not '
-                              'yet implemented.' % type(cs))
-
-            existing.append(cs)
-
-        # Refer to grid var
-        cf_var.grid_mapping = cs.grid_mapping_name
-    return existing
-
-
-def _create_cf_data_variable(dataset, cube, dimension_names):
-    """
-    Create CF-netCDF data variable for the cube and any associated grid mapping.
-
-    Args:
-
-    * dataset (:class:`netCDF4.Dataset`):
-        The CF-netCDF data file being created.
-    * cube (:class:`iris.cube.Cube`):
-        The associated cube being saved to CF-netCDF file.
-    * dimension_names:
-        List of string names for each dimension of the cube.
-
-    Returns:
-        The newly created CF-netCDF data variable.
-
-    """
-    cf_name = _cube_netcdf_variable_name(cube)
-    while cf_name in dataset.variables:
-        cf_name = _increment_name(cf_name)
-
-    # Determine whether there is a cube MDI value.
-    fill_value = None
-    if isinstance(cube.data, ma.core.MaskedArray):
-        fill_value = cube.data.fill_value
-
-    # Create the cube CF-netCDF data variable with data payload.
-    cf_var = dataset.createVariable(cf_name, cube.data.dtype, dimension_names, fill_value=fill_value)
-    cf_var[:] = cube.data
-
-    if cube.standard_name:
-        cf_var.standard_name = cube.standard_name
-
-    if cube.long_name:
-        cf_var.long_name = cube.long_name
-
-    if cube.units != 'unknown':
-        cf_var.units = str(cube.units)
-
-    # Add any other cube attributes as CF-netCDF data variable attributes.
-    for attr_name in sorted(cube.attributes):
-        value = cube.attributes[attr_name]
-
-        if attr_name == 'STASH':
-            # Adopting provisional Metadata Conventions for representing MO Scientific Data encoded in NetCDF Format.
-            attr_name = 'ukmo__um_stash_source'
-            value = str(value)
-
-        if attr_name == "ukmo__process_flags":
-            value = " ".join([x.replace(" ", "_") for x in value])
-
-        if attr_name.lower() != 'conventions':
-           setattr(cf_var, attr_name, value)
-
-    dataset.Conventions = _CF_CONVENTIONS_VERSION
-
-    # Create the CF-netCDF data variable cell method attribute.
-    cell_methods = _create_cf_cell_methods(cube, dimension_names)
-
-    if cell_methods:
-        cf_var.cell_methods = cell_methods
-
-    return cf_var
-
-
-def _increment_name(varname):
-    """
-    Increment string name or begin increment.
-
-    Avoidance of conflicts between variable names, where the name is
-    incremented to distinguish it from others.
-
-    Args:
-
-    * varname (string):
-        Variable name to increment.
-
-    Returns:
-        Incremented varname.
-
-    """
-    num = 0
-    try:
-        name, endnum = varname.rsplit('_', 1)
-        if endnum.isdigit():
-            num = int(endnum) + 1
-            varname = name
-    except ValueError:
-        pass
-
-    return '{}_{}'.format(varname, num)
-
-
-class SaveManager():
+class Saver():
     def __init__(self, filename, netcdf_format):
         """
         A manager for saving netcdf files.
@@ -754,34 +355,47 @@ class SaveManager():
         Returns:
             None.
 
+        For example::
+
+            # Initialise Manager for saving
+            with Saver(filename, netcdf_format) as sman:
+                # Iterate through the cubelist.
+                for cube in cubes:
+                    sman.write(cube)
+
         """
         if netcdf_format not in ['NETCDF4', 'NETCDF4_CLASSIC',
                                  'NETCDF3_CLASSIC', 'NETCDF3_64BIT']:
             raise ValueError('Unknown netCDF file format, got %r' %
                              netcdf_format)
 
-        # Storage for netcdf info.
-        self.netcdf_var = []
-        self.cfnames = []
-        self.dim_coords = []
-        self.added_gridmaps = []
-        self.existing_dim = dict()
-        self.dataset = netCDF4.Dataset(filename, mode='w',
-                                       format=netcdf_format)
+        # All persistent variables
+        self._netcdf_var = []
+        """Storage for NetCDF information"""
+        self._cfnames = []
+        """List of variable names taken within the file being written"""
+        self._dim_coords = []
+        """List of dimension coordinates added to the file"""
+        self._added_gridmaps = []
+        """List of grid mappings added to the file"""
+        self._existing_dim = {}
+        """A dictionary, listing dimension names and corresponding length"""
+        self._dataset = netCDF4.Dataset(filename, mode='w', format=netcdf_format)
+        """NetCDF dataset"""
 
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, traceback):
-        """
-        Flush any buffered data to the CF-netCDF file before closing.
+        """Flush any buffered data to the CF-netCDF file before closing."""
 
-        """
-        self.dataset.sync()
-        self.dataset.close()
+        self._dataset.sync()
+        self._dataset.close()
 
-    def save(self, cube):
+    def write(self, cube):
         """
+        Wrapper for saving cubes to a NetCDF file.
+
         Args:
 
         * cube (:class:`iris.cube.Cube`):
@@ -791,6 +405,9 @@ class SaveManager():
             None.
 
         """
+        if len(cube.aux_factories) > 1:
+            raise ValueError('Multiple auxiliary factories are not supported.')
+
         cf_profile_available = (
             'cf_profile' in iris.site_configuration and
             iris.site_configuration['cf_profile'] not in [None, False])
@@ -800,64 +417,95 @@ class SaveManager():
             # being raised if mandatory requirements are not satisfied.
             patch = iris.site_configuration['cf_profile'](cube)
 
-        if len(cube.aux_factories) > 1:
-            raise ValueError('Multiple auxiliary factories are not supported.')
-
         # Get suitable dimension names.
         dimension_names = self._get_dim_names(cube)
 
         # Create the CF-netCDF data dimensions.
-        # Make the outermost dimension an unlimited dimension.
-        if dimension_names:
-            if dimension_names[0] not in self.dataset.dimensions:
-                self.dataset.createDimension(dimension_names[0], None)
-        for dim_name, dim_len in zip(dimension_names, cube.shape)[1:]:
-            if dim_name not in self.dataset.dimensions:
-                self.dataset.createDimension(dim_name, dim_len)
+        self._add_cf_dim_coords(cube, dimension_names)
 
         # Identify the collection of coordinates that represent CF-netCDF
         # coordinate variables.
-        self.cf_coordinates = list(cube.dim_coords)
-        self.dimension_names = dimension_names
+        cf_coordinates = list(cube.dim_coords)
 
         # Create the associated cube CF-netCDF data variable.
-        cf_var_cube = _create_cf_data_variable(self.dataset, cube,
-                                               self.dimension_names)
+        cf_var_cube = self._create_cf_data_variable(cube, dimension_names)
         # Create the CF-netCDF grid mapping.
-        self.added_gridmaps = _create_cf_grid_mapping(self.dataset, cube,
-                                                      cf_var_cube,
-                                                      self.added_gridmaps)
+        self._create_cf_grid_mapping(cube, cf_var_cube)
 
-        # Add coordinate variables
-        self._add_coord_vars(cube)
+        # Add coordinate variables and return factory definitions
+        factory_defn = self._add_coord_vars(cube, dimension_names,
+                                            cf_coordinates)
 
         # Add the auxiliary coordinate variable names and associate the data
         # variable to them
-        self._add_aux_coords(cube, cf_var_cube)
+        cf_var_cube = self._add_aux_coords(cube, cf_var_cube, dimension_names, factory_defn)
 
         if cf_profile_available:
             # Perform a CF patch of the dataset.
-            iris.site_configuration['cf_patch'](patch, self.dataset,
+            iris.site_configuration['cf_patch'](patch, self._dataset,
                                                 cf_var_cube)
 
-    def _add_aux_coords(self, cube, cf_var_cube):
+    def _add_cf_dim_coords(self, cube, dimension_names):
+        """
+        Create the CF-netCDF data dimensions.
+        
+        Create the CF-netCDF data dimensions, making the outermost dimension
+        an unlimited dimension.
+
+        Args:
+
+        * cube (:class:`iris.cube.Cube`) or cubelist
+          (:class:`iris.cube.CubeList`):
+            A :class:`iris.cube.Cube`, :class:`iris.cube.CubeList` or list of
+            cubes to be saved to a netCDF file.
+        * dimension_names (list):
+            Names associated with the dimensions of the cube.
+
+        Returns:
+            None.
+
+        """
+        if dimension_names:
+            if dimension_names[0] not in self._dataset.dimensions:
+                self._dataset.createDimension(dimension_names[0], None)
+        for dim_name, dim_len in zip(dimension_names, cube.shape)[1:]:
+            if dim_name not in self._dataset.dimensions:
+                self._dataset.createDimension(dim_name, dim_len)
+
+    def _add_aux_coords(self, cube, cf_var_cube, dimension_names, factory_defn):
         """
         Add aux. coordinate to the dataset and associate with the data variable
 
+        Args:
+
+        * cube (:class:`iris.cube.Cube`) or cubelist
+          (:class:`iris.cube.CubeList`):
+            A :class:`iris.cube.Cube`, :class:`iris.cube.CubeList` or list of
+            cubes to be saved to a netCDF file.
+        * cf_var_cube (:class:`netcdf.netcdf_variable`):
+            cf variable cube representation.
+        * dimension_names (list):
+            Names associated with the dimensions of the cube.
+        * factory_defn (:class:`_FactoryDefn`):
+            An optional description of the AuxCoordFactory relevant to this
+            cube.
+
+        Returns:
+            Updated cf_var_cube with coordinates added.
+
         """
         auxiliary_coordinate_names = []
-        # Add CF-netCDF variables for the associated auxilary coordinates.
+        # Add CF-netCDF variables for the associated auxiliary coordinates.
         for coord in sorted(cube.aux_coords, key=lambda coord: coord.name()):
             # Create the associated coordinate CF-netCDF variable.
-            if coord not in self.netcdf_var:
-                cf_name = _create_cf_variable(self.dataset, cube,
-                                              self.dimension_names,
-                                              coord, self.factory_defn)
-                self.netcdf_var.append(coord)
-                self.cfnames.append(cf_name)
+            if coord not in self._netcdf_var:
+                cf_name = self._create_cf_variable(cube, dimension_names,
+                                                   coord, factory_defn)
+                self._netcdf_var.append(coord)
+                self._cfnames.append(cf_name)
             else:
-                cf_name = [self.cfnames[ind] for ind, val,
-                           in enumerate(self.netcdf_var) if
+                cf_name = [self._cfnames[ind] for ind, val,
+                           in enumerate(self._netcdf_var) if
                            val == coord][0]
 
             if cf_name is not None:
@@ -868,30 +516,57 @@ class SaveManager():
         if auxiliary_coordinate_names:
             cf_var_cube.coordinates = ' '.join(
                 sorted(auxiliary_coordinate_names))
+        return cf_var_cube
 
-    def _add_coord_vars(self, cube):
+    def _add_coord_vars(self, cube, dimension_names, cf_coordinates):
         """
-        Add coordinate variables to netcdf dataset.
+        Add coordinate variables to NetCDF dataset.
+
+        Args:
+
+        * cube (:class:`iris.cube.Cube`) or cubelist
+          (:class:`iris.cube.CubeList`):
+            A :class:`iris.cube.Cube`, :class:`iris.cube.CubeList` or list of
+            cubes to be saved to a netCDF file.
+        * dimension_names (list):
+            Names associated with the dimensions of the cube.
+        * cf_coordinates (list):
+            Coordinates that represent CF-netCDF coordinate variables.
+
+        Returns:
+            Factory definitions, a description of the AuxCoordFactory relevant
+            to this cube.
 
         """
-        self.factory_defn = None
+        factory_defn = None
         if cube.aux_factories:
             factory = cube.aux_factories[0]
-            self.factory_defn = _FACTORY_DEFNS.get(type(factory), None)
+            factory_defn = _FACTORY_DEFNS.get(type(factory), None)
 
         # Ensure we create the netCDF coordinate variables first.
-        for coord in self.cf_coordinates:
+        for coord in cf_coordinates:
             # Create the associated coordinate CF-netCDF variable.
-            if coord not in self.netcdf_var:
-                cf_name = _create_cf_variable(self.dataset, cube,
-                                              self.dimension_names,
-                                              coord, self.factory_defn)
-                self.netcdf_var.append(coord)
-                self.cfnames.append(cf_name)
+            if coord not in self._netcdf_var:
+                cf_name = self._create_cf_variable(cube, dimension_names,
+                                                   coord, factory_defn)
+                self._netcdf_var.append(coord)
+                self._cfnames.append(cf_name)
+        return factory_defn
 
     def _get_dim_names(self, cube):
         """
         Determine suitable CF-netCDF data dimension names.
+
+        Args:
+
+        * cube (:class:`iris.cube.Cube`) or cubelist
+          (:class:`iris.cube.CubeList`):
+            A :class:`iris.cube.Cube`, :class:`iris.cube.CubeList` or list of
+            cubes to be saved to a netCDF file.
+
+        Returns:
+            List of dimension names with length equal the number of dimensions
+            in the cube.
 
         """
         dimension_names = []
@@ -900,41 +575,485 @@ class SaveManager():
             if coords:
                 coord = coords[0]
 
-                dim_name = _coord_netcdf_variable_name(cube, coord)
+                dim_name = self._coord_netcdf_variable_name(cube, coord)
                 # Add only dimensions that have not already been added.
-                if coord not in self.dim_coords:
+                if coord not in self._dim_coords:
                     # Determine unique dimension name
-                    while (dim_name in self.existing_dim or
-                           dim_name in self.cfnames):
-                        dim_name = _increment_name(dim_name)
+                    while (dim_name in self._existing_dim or
+                           dim_name in self._cfnames):
+                        dim_name = self._increment_name(dim_name)
 
                     # Update names added, current cube dim names used
                     # and unique coordinates added
-                    self.existing_dim[dim_name] = coord.shape[0]
+                    self._existing_dim[dim_name] = coord.shape[0]
                     dimension_names.append(dim_name)
-                    self.dim_coords.append(coord)
+                    self._dim_coords.append(coord)
                 else:
                     dimension_names.append(dim_name)
 
             # No CF-netCDF coordinates describe this data dimension.
             else:
                 dim_name = 'dim%d' % dim
-                if dim_name in self.existing_dim:
+                if dim_name in self._existing_dim:
                     # Increment name if conflicted with one already existing.
-                    if self.existing_dim[dim_name] != cube.shape[dim]:
-                        while (dim_name in self.existing_dim and
-                               self.existing_dim[dim_name] !=
+                    if self._existing_dim[dim_name] != cube.shape[dim]:
+                        while (dim_name in self._existing_dim and
+                               self._existing_dim[dim_name] !=
                                cube.shape[dim] or
-                               dim_name in self.cfnames):
-                            dim_name = _increment_name(dim_name)
+                               dim_name in self._cfnames):
+                            dim_name = self._increment_name(dim_name)
                         # Update dictionary with new entry
-                        self.existing_dim[dim_name] = cube.shape[dim]
+                        self._existing_dim[dim_name] = cube.shape[dim]
                 else:
                     # Update dictionary with new entry
-                    self.existing_dim[dim_name] = cube.shape[dim]
+                    self._existing_dim[dim_name] = cube.shape[dim]
 
                 dimension_names.append(dim_name)
         return dimension_names
+
+    def _cf_coord_identity(self, coord):
+        """
+        Determine a suitable units from a given coordinate.
+
+        Args:
+
+        * coord (:class:`iris.coords.Coord`):
+            A coordinate of a cube.
+
+        Returns:
+            The (standard_name, long_name, unit) of the given
+            :class:`iris.coords.Coord` instance.
+
+        """
+
+        units = str(coord.units)
+    
+        # TODO: Use #61 to get the units.
+        if isinstance(coord.coord_system, iris.coord_systems.GeogCS):
+            if "latitude" in coord.standard_name:
+                units = 'degrees_north'
+            elif "longitude" in coord.standard_name:
+                units = 'degrees_east'
+    
+        elif isinstance(coord.coord_system, iris.coord_systems.RotatedGeogCS):
+            units = 'degrees'
+    
+        elif isinstance(coord.coord_system, iris.coord_systems.TransverseMercator):
+            units = 'm'
+    
+        return coord.standard_name, coord.long_name, units
+
+    def _create_bounds(self, coord, cf_var, cf_name):
+        """
+
+        Args:
+
+        * coord (:class:`iris.coords.Coord`):
+            A coordinate of a cube.
+        * cf_var:
+            CF-netCDF variable
+        * cf_name (string):
+            name of the CF-NetCDF variable.
+
+        Returns:
+            None
+
+        """
+        if coord.has_bounds():
+            n_bounds = coord.bounds.shape[-1]
+    
+            if n_bounds == 2:
+                bounds_dimension_name = 'bnds'
+            else:
+                bounds_dimension_name = 'bnds_%s' % n_bounds
+    
+            if bounds_dimension_name not in self._dataset.dimensions:
+                # Create the bounds dimension with the appropriate extent.
+                self._dataset.createDimension(bounds_dimension_name, n_bounds)
+    
+            cf_var.bounds = cf_name + '_bnds'
+            cf_var_bounds = self._dataset.createVariable(
+                cf_var.bounds, coord.bounds.dtype,
+                cf_var.dimensions + (bounds_dimension_name,))
+            cf_var_bounds[:] = coord.bounds
+
+    def _cube_netcdf_variable_name(self, cube):
+        """
+        Returns a CF-netCDF variable name for the given cube.
+
+        Args:
+
+        * cube (class:`iris.cube.Cube`):
+            An instance of a cube for which a CF-netCDF variable
+            name is required.
+
+        Returns:
+            A CF-netCDF variable name as a string.
+
+        """
+        if cube.var_name is not None:
+            cf_name = cube.var_name
+        else:
+            # Convert to lower case and replace whitespace by underscores.
+            cf_name = '_'.join(cube.name().lower().split())
+    
+        return cf_name
+
+    def _coord_netcdf_variable_name(self, cube, coord):
+        """
+        Returns a CF-netCDF variable name for the given coordinate.
+
+        Args:
+
+        * cube (:class:`iris.cube.Cube`):
+            The cube that contains the given coordinate.
+        * coord (:class:`iris.coords.Coord`):
+            An instance of a coordinate for which a CF-netCDF variable
+            name is required.
+
+        Returns:
+            A CF-netCDF variable name as a string.
+
+        """
+        if coord.var_name is not None:
+            cf_name = coord.var_name
+        else:
+            name = coord.standard_name or coord.long_name
+            if not name or set(name).intersection(string.whitespace):
+                # Auto-generate name based on associated dimensions.
+                name = ''
+                for dim in cube.coord_dims(coord):
+                    name += 'dim{}'.format(dim)
+                # Handle scalar coordinate (dims == ()).
+                if not name:
+                    name = 'unknown_scalar'
+            # Convert to lower case and replace whitespace by underscores.
+            cf_name = '_'.join(name.lower().split())
+
+        return cf_name
+
+    def _create_cf_variable(self, cube, dimension_names, coord, factory_defn):
+        """
+        Create the associated CF-netCDF variable in the netCDF dataset for the
+        given coordinate. If required, also create the CF-netCDF bounds variable
+        and associated dimension.
+
+        Args:
+
+        * dataset (:class:`netCDF4.Dataset`):
+            The CF-netCDF data file being created.
+        * cube (:class:`iris.cube.Cube`):
+            The associated cube being saved to CF-netCDF file.
+        * dimension_names (list):
+            Names for each dimension of the cube.
+        * coord (:class:`iris.coords.Coord`):
+            The coordinate to be saved to CF-netCDF file.
+        * factory_defn (:class:`_FactoryDefn`):
+            An optional description of the AuxCoordFactory relevant to this
+            cube.
+
+        Returns:
+            The string name of the associated CF-netCDF variable saved.
+
+        """
+        cf_name = self._coord_netcdf_variable_name(cube, coord)
+        while cf_name in self._dataset.variables:
+            cf_name = self._increment_name(cf_name)
+    
+        # Derive the data dimension names for the coordinate.
+        cf_dimensions = [dimension_names[dim] for dim in cube.coord_dims(coord)]
+    
+        if np.issubdtype(coord.points.dtype, np.str):
+            string_dimension_depth = coord.points.dtype.itemsize
+            string_dimension_name = 'string%d' % string_dimension_depth
+    
+            # Determine whether to create the string length dimension.
+            if string_dimension_name not in self._dataset.dimensions:
+                self._dataset.createDimension(string_dimension_name, string_dimension_depth)
+    
+            # Add the string length dimension to dimension names.
+            cf_dimensions.append(string_dimension_name)
+    
+            # Create the label coordinate variable.
+            cf_var = self._dataset.createVariable(cf_name, '|S1', cf_dimensions)
+    
+            # Add the payload to the label coordinate variable.
+            if len(cf_dimensions) == 1:
+                cf_var[:] = list('%- *s' % (string_dimension_depth, coord.points[0]))
+            else:
+                for index in np.ndindex(coord.points.shape):
+                    index_slice = tuple(list(index) + [slice(None, None)])
+                    cf_var[index_slice] = list('%- *s' % (string_dimension_depth, coord.points[index]))
+        else:
+            # Identify the collection of coordinates that represent CF-netCDF coordinate variables.
+            cf_coordinates = cube.dim_coords
+    
+            if coord in cf_coordinates:
+                # By definition of a CF-netCDF coordinate variable this coordinate must be 1-D
+                # and the name of the CF-netCDF variable must be the same as its dimension name.
+                cf_name = cf_dimensions[0]
+    
+            # Create the CF-netCDF variable.
+            cf_var = self._dataset.createVariable(cf_name, coord.points.dtype, cf_dimensions)
+    
+            # Add the axis attribute for spatio-temporal CF-netCDF coordinates.
+            if coord in cf_coordinates:
+                axis = iris.util.guess_coord_axis(coord)
+                if axis is not None and axis.lower() in SPATIO_TEMPORAL_AXES:
+                    cf_var.axis = axis.upper()
+    
+            # Add the data to the CF-netCDF variable.
+            cf_var[:] = coord.points
+    
+            # Create the associated CF-netCDF bounds variable.
+            self._create_bounds(coord, cf_var, cf_name)
+    
+        # Deal with CF-netCDF units and standard name.
+        standard_name, long_name, units = self._cf_coord_identity(coord)
+
+        # If this coordinate should describe a dimensionless vertical
+        # coordinate, then override `standard_name`, `long_name`, and `axis`,
+        # and also set the `formula_terms` attribute.
+        if factory_defn:
+            dependencies = cube.aux_factories[0].dependencies
+            if coord is dependencies[factory_defn.primary]:
+                standard_name = factory_defn.std_name
+                cf_var.axis = 'Z'
+    
+                fmt = factory_defn.formula_terms_format
+                names = {key: coord.name() for key, coord in
+                                dependencies.iteritems()}
+                formula_terms = fmt.format(**names)
+                cf_var.formula_terms = formula_terms
+    
+        if units != 'unknown':
+            cf_var.units = units
+    
+        if standard_name is not None:
+            cf_var.standard_name = standard_name
+    
+        if long_name is not None:
+            cf_var.long_name = long_name
+    
+        # Add the CF-netCDF calendar attribute.
+        if coord.units.calendar:
+            cf_var.calendar = coord.units.calendar
+    
+        # Add any other custom coordinate attributes.
+        for name in sorted(coord.attributes):
+            value = coord.attributes[name]
+    
+            if name == 'STASH':
+                # Adopting provisional Metadata Conventions for representing MO Scientific Data encoded in NetCDF Format.
+                name = 'ukmo__um_stash_source'
+                value = str(value)
+    
+            # Don't clobber existing attributes.
+            if not hasattr(cf_var, name):
+                setattr(cf_var, name, value)
+
+        return cf_name
+
+    def _create_cf_cell_methods(self, cube, dimension_names):
+        """
+        Create CF-netCDF string representation of a cube cell methods.
+
+        Args:
+
+        * cube (:class:`iris.cube.Cube`) or cubelist
+          (:class:`iris.cube.CubeList`):
+            A :class:`iris.cube.Cube`, :class:`iris.cube.CubeList` or list of
+            cubes to be saved to a netCDF file.
+        * dimension_names (list):
+            Names associated with the dimensions of the cube.
+
+        Returns:
+            CF-netCDF string representation of a cube cell methods.
+
+        """
+        cell_methods = []
+    
+        # Identify the collection of coordinates that represent CF-netCDF coordinate variables.
+        cf_coordinates = cube.dim_coords
+    
+        for cm in cube.cell_methods:
+            names = ''
+    
+            for name in cm.coord_names:
+                coord = cube.coords(name)
+    
+                if coord:
+                    coord = coord[0]
+                    if coord in cf_coordinates:
+                        name = dimension_names[cube.coord_dims(coord)[0]]
+    
+                names += '%s: ' % name
+    
+            interval = ' '.join(['interval: %s' % interval for interval in cm.intervals or []])
+            comment = ' '.join(['comment: %s' % comment for comment in cm.comments or []])
+            extra = ' '.join([interval, comment]).strip()
+    
+            if extra:
+                extra = ' (%s)' % extra
+    
+            cell_methods.append(names + cm.method + extra)
+    
+        return ' '.join(cell_methods)
+
+    def _create_cf_grid_mapping(self, cube, cf_var_cube):
+        """
+        Create CF-netCDF grid mapping variable and associated CF-netCDF
+        data variable grid mapping attribute.
+
+        Args:
+
+        * cube (:class:`iris.cube.Cube`) or cubelist
+          (:class:`iris.cube.CubeList`):
+            A :class:`iris.cube.Cube`, :class:`iris.cube.CubeList` or list of
+            cubes to be saved to a netCDF file.
+        * cf_var_cube (:class:`netcdf.netcdf_variable`):
+            cf variable cube representation.
+
+        Returns:
+            None
+
+        """
+        cs = cube.coord_system('CoordSystem')
+        if cs is not None:
+            # Grid var not yet created?
+            if cs not in self._added_gridmaps:
+                while cs.grid_mapping_name in self._dataset.variables:
+                    cs.grid_mapping_name = self._increment_name(cs.grid_mapping_name)
+                    
+                cf_var_grid = self._dataset.createVariable(cs.grid_mapping_name, np.int32)
+                cf_var_grid.grid_mapping_name = cs.grid_mapping_name
+    
+                # latlon
+                if isinstance(cs, iris.coord_systems.GeogCS):
+                    cf_var_grid.longitude_of_prime_meridian = cs.longitude_of_prime_meridian
+                    cf_var_grid.semi_major_axis = cs.semi_major_axis
+                    cf_var_grid.semi_minor_axis = cs.semi_minor_axis
+    
+                # rotated latlon
+                elif isinstance(cs, iris.coord_systems.RotatedGeogCS):
+                    if cs.ellipsoid:
+                        cf_var_grid.longitude_of_prime_meridian = cs.ellipsoid.longitude_of_prime_meridian
+                        cf_var_grid.semi_major_axis = cs.ellipsoid.semi_major_axis
+                        cf_var_grid.semi_minor_axis = cs.ellipsoid.semi_minor_axis
+                    cf_var_grid.grid_north_pole_latitude = cs.grid_north_pole_latitude
+                    cf_var_grid.grid_north_pole_longitude = cs.grid_north_pole_longitude
+                    cf_var_grid.north_pole_grid_longitude = cs.north_pole_grid_longitude
+    
+                # tmerc
+                elif isinstance(cs, iris.coord_systems.TransverseMercator):
+                    warnings.warn('TransverseMercator coordinate system not yet '
+                                  'handled')
+    
+                # osgb (a specific tmerc)
+                elif isinstance(cs, iris.coord_systems.OSGB):
+                    warnings.warn('OSGB coordinate system not yet handled')
+    
+                # other
+                else:
+                    warnings.warn('Unable to represent the horizontal coordinate '
+                                  'system. The coordinate system type %r is not '
+                                  'yet implemented.' % type(cs))
+    
+                self._added_gridmaps.append(cs)
+    
+            # Refer to grid var
+            cf_var_cube.grid_mapping = cs.grid_mapping_name
+
+    def _create_cf_data_variable(self, cube, dimension_names):
+        """
+        Create CF-netCDF data variable for the cube and any associated grid mapping.
+
+        Args:
+
+        * dataset (:class:`netCDF4.Dataset`):
+            The CF-netCDF data file being created.
+        * cube (:class:`iris.cube.Cube`):
+            The associated cube being saved to CF-netCDF file.
+        * dimension_names (list):
+            String names for each dimension of the cube.
+
+        Returns:
+            The newly created CF-netCDF data variable.
+
+        """
+        cf_name = self._cube_netcdf_variable_name(cube)
+        while cf_name in self._dataset.variables:
+            cf_name = self._increment_name(cf_name)
+
+        # Determine whether there is a cube MDI value.
+        fill_value = None
+        if isinstance(cube.data, ma.core.MaskedArray):
+            fill_value = cube.data.fill_value
+    
+        # Create the cube CF-netCDF data variable with data payload.
+        cf_var = self._dataset.createVariable(cf_name, cube.data.dtype, dimension_names, fill_value=fill_value)
+        cf_var[:] = cube.data
+    
+        if cube.standard_name:
+            cf_var.standard_name = cube.standard_name
+    
+        if cube.long_name:
+            cf_var.long_name = cube.long_name
+    
+        if cube.units != 'unknown':
+            cf_var.units = str(cube.units)
+    
+        # Add any other cube attributes as CF-netCDF data variable attributes.
+        for attr_name in sorted(cube.attributes):
+            value = cube.attributes[attr_name]
+    
+            if attr_name == 'STASH':
+                # Adopting provisional Metadata Conventions for representing MO Scientific Data encoded in NetCDF Format.
+                attr_name = 'ukmo__um_stash_source'
+                value = str(value)
+    
+            if attr_name == "ukmo__process_flags":
+                value = " ".join([x.replace(" ", "_") for x in value])
+    
+            if attr_name.lower() != 'conventions':
+               setattr(cf_var, attr_name, value)
+    
+        self._dataset.Conventions = _CF_CONVENTIONS_VERSION
+    
+        # Create the CF-netCDF data variable cell method attribute.
+        cell_methods = self._create_cf_cell_methods(cube, dimension_names)
+    
+        if cell_methods:
+            cf_var.cell_methods = cell_methods
+    
+        return cf_var
+
+    def _increment_name(self, varname):
+        """
+        Increment string name or begin increment.
+    
+        Avoidance of conflicts between variable names, where the name is
+        incremented to distinguish it from others.
+
+        Args:
+
+        * varname (string):
+            Variable name to increment.
+
+        Returns:
+            Incremented varname.
+
+        """
+        num = 0
+        try:
+            name, endnum = varname.rsplit('_', 1)
+            if endnum.isdigit():
+                num = int(endnum) + 1
+                varname = name
+        except ValueError:
+            pass
+    
+        return '{}_{}'.format(varname, num)
 
 
 def save(cube, filename, netcdf_format='NETCDF4'):
@@ -943,12 +1062,15 @@ def save(cube, filename, netcdf_format='NETCDF4'):
 
     Args:
 
-    * cube (:class:`iris.cube.Cube`) or cubelist (:class:`iris.cube.CubeList`):
-        A :class:`iris.cube.Cube`, :class:`iris.cube.CubeList` or list of cubes
-        to be saved to a netCDF file.
+    * cube (:class:`iris.cube.Cube`) or cubelist
+      (:class:`iris.cube.CubeList`):
+        A :class:`iris.cube.Cube`, :class:`iris.cube.CubeList` or list of
+        cubes to be saved to a netCDF file.
 
     * filename (string):
-        Name of the netCDF file to save the cube.
+        Name of the netCDF file to save the cube(s).
+
+    Kwargs:
 
     * netcdf_format (string):
         Underlying netCDF file format, one of 'NETCDF4', 'NETCDF4_CLASSIC',
@@ -956,6 +1078,10 @@ def save(cube, filename, netcdf_format='NETCDF4'):
 
     Returns:
         None.
+
+    .. seealso::
+    
+        NetCDF Context manager (:class:`~Saver`).
 
     """
     if isinstance(cube, iris.cube.Cube):
@@ -965,7 +1091,7 @@ def save(cube, filename, netcdf_format='NETCDF4'):
         cubes = cube
 
     # Initialise Manager for saving
-    with SaveManager(filename, netcdf_format) as manager:
+    with Saver(filename, netcdf_format) as sman:
         # Iterate through the cubelist.
         for cube in cubes:
-            manager.save(cube)
+            sman.write(cube)
