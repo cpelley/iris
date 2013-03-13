@@ -50,6 +50,8 @@ import iris.unit
 import iris.util
 
 
+CFVARIABLE = collections.namedtuple('CFVariable', ['names', 'coords'])
+
 # Show Pyke inference engine statistics.
 DEBUG = False
 
@@ -394,13 +396,12 @@ class Saver():
                              netcdf_format)
 
         # All persistent variables
-        self._netcdf_var = []
-        """Storage for NetCDF information"""
-        self._cfnames = []
-        """List of variable names taken within the file being written"""
+        self._cf_variable = CFVARIABLE([], [])
+        """Tuple of coordinates added to the cube and their corresponding
+        variable names taken within the file being written"""
         self._dim_coords = []
         """List of dimension coordinates added to the file"""
-        self._added_gridmaps = []
+        self._coord_systems = []
         """List of grid mappings added to the file"""
         self._existing_dim = {}
         """A dictionary, listing dimension names and corresponding length"""
@@ -448,18 +449,13 @@ class Saver():
         # Create the CF-netCDF data dimensions.
         self._add_cf_dim_coords(cube, dimension_names)
 
-        # Identify the collection of coordinates that represent CF-netCDF
-        # coordinate variables.
-        cf_coordinates = list(cube.dim_coords)
-
         # Create the associated cube CF-netCDF data variable.
         cf_var_cube = self._create_cf_data_variable(cube, dimension_names)
         # Create the CF-netCDF grid mapping.
         self._create_cf_grid_mapping(cube, cf_var_cube)
 
         # Add coordinate variables and return factory definitions
-        factory_defn = self._add_coord_vars(cube, dimension_names,
-                                            cf_coordinates)
+        factory_defn = self._add_dim_coords(cube, dimension_names)
 
         # Add the auxiliary coordinate variable names and associate the data
         # variable to them
@@ -525,14 +521,14 @@ class Saver():
         # Add CF-netCDF variables for the associated auxiliary coordinates.
         for coord in sorted(cube.aux_coords, key=lambda coord: coord.name()):
             # Create the associated coordinate CF-netCDF variable.
-            if coord not in self._netcdf_var:
+            if coord not in self._cf_variable.coords:
                 cf_name = self._create_cf_variable(cube, dimension_names,
                                                    coord, factory_defn)
-                self._netcdf_var.append(coord)
-                self._cfnames.append(cf_name)
+                self._cf_variable.coords.append(coord)
+                self._cf_variable.names.append(cf_name)
             else:
-                cf_name = [self._cfnames[ind] for ind, val,
-                           in enumerate(self._netcdf_var) if
+                cf_name = [self._cf_variable.names[ind] for ind, val,
+                           in enumerate(self._cf_variable.coords) if
                            val == coord][0]
 
             if cf_name is not None:
@@ -545,7 +541,7 @@ class Saver():
                 sorted(auxiliary_coordinate_names))
         return cf_var_cube
 
-    def _add_coord_vars(self, cube, dimension_names, cf_coordinates):
+    def _add_dim_coords(self, cube, dimension_names):
         """
         Add coordinate variables to NetCDF dataset.
 
@@ -557,8 +553,6 @@ class Saver():
             cubes to be saved to a netCDF file.
         * dimension_names (list):
             Names associated with the dimensions of the cube.
-        * cf_coordinates (list):
-            Coordinates that represent CF-netCDF coordinate variables.
 
         Returns:
             Factory definitions, a description of the AuxCoordFactory relevant
@@ -571,13 +565,13 @@ class Saver():
             factory_defn = _FACTORY_DEFNS.get(type(factory), None)
 
         # Ensure we create the netCDF coordinate variables first.
-        for coord in cf_coordinates:
+        for coord in cube.dim_coords:
             # Create the associated coordinate CF-netCDF variable.
-            if coord not in self._netcdf_var:
+            if coord not in self._cf_variable.coords:
                 cf_name = self._create_cf_variable(cube, dimension_names,
                                                    coord, factory_defn)
-                self._netcdf_var.append(coord)
-                self._cfnames.append(cf_name)
+                self._cf_variable.coords.append(coord)
+                self._cf_variable.names.append(cf_name)
         return factory_defn
 
     def _get_dim_names(self, cube):
@@ -607,7 +601,7 @@ class Saver():
                 if coord not in self._dim_coords:
                     # Determine unique dimension name
                     while (dim_name in self._existing_dim or
-                           dim_name in self._cfnames):
+                           dim_name in self._cf_variable.names):
                         dim_name = self._increment_name(dim_name)
 
                     # Update names added, current cube dim names used
@@ -627,7 +621,7 @@ class Saver():
                         while (dim_name in self._existing_dim and
                                self._existing_dim[dim_name] !=
                                cube.shape[dim] or
-                               dim_name in self._cfnames):
+                               dim_name in self._cf_variable.names):
                             dim_name = self._increment_name(dim_name)
                         # Update dictionary with new entry
                         self._existing_dim[dim_name] = cube.shape[dim]
@@ -962,7 +956,7 @@ class Saver():
         cs = cube.coord_system('CoordSystem')
         if cs is not None:
             # Grid var not yet created?
-            if cs not in self._added_gridmaps:
+            if cs not in self._coord_systems:
                 while cs.grid_mapping_name in self._dataset.variables:
                     cs.grid_mapping_name = (
                         self._increment_name(cs.grid_mapping_name))
@@ -1009,7 +1003,7 @@ class Saver():
                                   'coordinate system. The coordinate system '
                                   'type %r is not yet implemented.' % type(cs))
 
-                self._added_gridmaps.append(cs)
+                self._coord_systems.append(cs)
 
             # Refer to grid var
             cf_var_cube.grid_mapping = cs.grid_mapping_name
