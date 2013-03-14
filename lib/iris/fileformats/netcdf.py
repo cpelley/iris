@@ -50,7 +50,7 @@ import iris.unit
 import iris.util
 
 
-CFVARIABLE = collections.namedtuple('CFVariable', ['names', 'coords'])
+CfVariable = collections.namedtuple('CFVariable', ['names', 'coords'])
 
 # Show Pyke inference engine statistics.
 DEBUG = False
@@ -396,7 +396,7 @@ class Saver():
                              netcdf_format)
 
         # All persistent variables
-        self._cf_variable = CFVARIABLE([], [])
+        self._cf_variable = []
         """Tuple of coordinates added to the cube and their corresponding
         variable names taken within the file being written"""
         self._dim_coords = []
@@ -521,15 +521,15 @@ class Saver():
         # Add CF-netCDF variables for the associated auxiliary coordinates.
         for coord in sorted(cube.aux_coords, key=lambda coord: coord.name()):
             # Create the associated coordinate CF-netCDF variable.
-            if coord not in self._cf_variable.coords:
+            if coord not in [item.coords for item in self._cf_variable]:
                 cf_name = self._create_cf_variable(cube, dimension_names,
                                                    coord, factory_defn)
-                self._cf_variable.coords.append(coord)
-                self._cf_variable.names.append(cf_name)
+                self._cf_variable.append(CfVariable(names=cf_name,
+                                                    coords=coord))
             else:
-                cf_name = [self._cf_variable.names[ind] for ind, val,
-                           in enumerate(self._cf_variable.coords) if
-                           val == coord][0]
+                cf_name = [self._cf_variable[ind].names for ind, val
+                           in enumerate(self._cf_variable) if
+                           val.coords == coord][0]
 
             if cf_name is not None:
                 auxiliary_coordinate_names.append(cf_name)
@@ -567,11 +567,11 @@ class Saver():
         # Ensure we create the netCDF coordinate variables first.
         for coord in cube.dim_coords:
             # Create the associated coordinate CF-netCDF variable.
-            if coord not in self._cf_variable.coords:
+            if coord not in [item.coords for item in self._cf_variable]:
                 cf_name = self._create_cf_variable(cube, dimension_names,
                                                    coord, factory_defn)
-                self._cf_variable.coords.append(coord)
-                self._cf_variable.names.append(cf_name)
+                self._cf_variable.append(CfVariable(names=cf_name,
+                                                    coords=coord))
         return factory_defn
 
     def _get_dim_names(self, cube):
@@ -601,7 +601,8 @@ class Saver():
                 if coord not in self._dim_coords:
                     # Determine unique dimension name
                     while (dim_name in self._existing_dim or
-                           dim_name in self._cf_variable.names):
+                           dim_name in
+                           [item.names for item in self._cf_variable]):
                         dim_name = self._increment_name(dim_name)
 
                     # Update names added, current cube dim names used
@@ -621,7 +622,8 @@ class Saver():
                         while (dim_name in self._existing_dim and
                                self._existing_dim[dim_name] !=
                                cube.shape[dim] or
-                               dim_name in self._cf_variable.names):
+                               dim_name in
+                               [item.names for item in self._cf_variable]):
                             dim_name = self._increment_name(dim_name)
                         # Update dictionary with new entry
                         self._existing_dim[dim_name] = cube.shape[dim]
