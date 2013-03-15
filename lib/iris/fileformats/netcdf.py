@@ -50,8 +50,6 @@ import iris.unit
 import iris.util
 
 
-CfVariable = collections.namedtuple('CFVariable', ['names', 'coords'])
-
 # Show Pyke inference engine statistics.
 DEBUG = False
 
@@ -88,6 +86,36 @@ _FACTORY_DEFNS = {
         primary='delta',
         std_name='atmosphere_hybrid_height_coordinate',
         formula_terms_format='a: {delta} b: {sigma} orog: {orography}'), }
+
+
+class CfNameCoordMap(object):
+    NameCoordMap = collections.namedtuple('NameCoordMap', ['name', 'coord'])
+    def __init__(self):
+        self.names_coords = []
+
+    def add(self, name, coord):
+        """Add name coordinate pair"""
+        self.names_coords.append(CfNameCoordMap.NameCoordMap(name, coord))
+
+    def names(self):
+        """Return all names"""
+        return [pair.name for pair in self.names_coords]
+
+    def coords(self):
+        """Return all coordinates"""
+        return [pair.coord for pair in self.names_coords]
+
+    def name2coord(self, name):
+        """Return the coord given a name"""
+        for pair in self.names_coords:
+            if pair.name == name:
+                return pair.coord
+
+    def coord2name(self, coord):
+        """Return the name given a coord"""
+        for pair in self.names_coords:
+            if pair.coord == coord:
+                return pair.name
 
 
 def _pyke_kb_engine():
@@ -364,7 +392,7 @@ def load_cubes(filenames, callback=None):
                 yield cube
 
 
-class Saver():
+class Saver(object):
     def __init__(self, filename, netcdf_format):
         """
         A manager for saving netcdf files.
@@ -396,9 +424,8 @@ class Saver():
                              netcdf_format)
 
         # All persistent variables
-        self._cf_variable = []
-        """Tuple of coordinates added to the cube and their corresponding
-        variable names taken within the file being written"""
+        self._name_coord_map = CfNameCoordMap()
+        """CF name mapping with iris coordinates"""
         self._dim_coords = []
         """List of dimension coordinates added to the file"""
         self._coord_systems = []
@@ -447,12 +474,10 @@ class Saver():
         dimension_names = self._get_dim_names(cube)
 
         # Create the CF-netCDF data dimensions.
-        self._add_cf_dim_coords(cube, dimension_names)
+        self._create_cf_dimensions(cube, dimension_names)
 
         # Create the associated cube CF-netCDF data variable.
         cf_var_cube = self._create_cf_data_variable(cube, dimension_names)
-        # Create the CF-netCDF grid mapping.
-        self._create_cf_grid_mapping(cube, cf_var_cube)
 
         # Add coordinate variables and return factory definitions
         factory_defn = self._add_dim_coords(cube, dimension_names)
@@ -467,7 +492,7 @@ class Saver():
             iris.site_configuration['cf_patch'](patch, self._dataset,
                                                 cf_var_cube)
 
-    def _add_cf_dim_coords(self, cube, dimension_names):
+    def _create_cf_dimensions(self, cube, dimension_names):
         """
         Create the CF-netCDF data dimensions.
 
@@ -521,15 +546,12 @@ class Saver():
         # Add CF-netCDF variables for the associated auxiliary coordinates.
         for coord in sorted(cube.aux_coords, key=lambda coord: coord.name()):
             # Create the associated coordinate CF-netCDF variable.
-            if coord not in [item.coords for item in self._cf_variable]:
+            if coord not in self._name_coord_map.coords():
                 cf_name = self._create_cf_variable(cube, dimension_names,
                                                    coord, factory_defn)
-                self._cf_variable.append(CfVariable(names=cf_name,
-                                                    coords=coord))
+                self._name_coord_map.add(cf_name, coord)
             else:
-                cf_name = [self._cf_variable[ind].names for ind, val
-                           in enumerate(self._cf_variable) if
-                           val.coords == coord][0]
+                cf_name = self._name_coord_map.coord2name(coord)
 
             if cf_name is not None:
                 auxiliary_coordinate_names.append(cf_name)
@@ -567,11 +589,10 @@ class Saver():
         # Ensure we create the netCDF coordinate variables first.
         for coord in cube.dim_coords:
             # Create the associated coordinate CF-netCDF variable.
-            if coord not in [item.coords for item in self._cf_variable]:
+            if coord not in self._name_coord_map.coords():
                 cf_name = self._create_cf_variable(cube, dimension_names,
                                                    coord, factory_defn)
-                self._cf_variable.append(CfVariable(names=cf_name,
-                                                    coords=coord))
+                self._name_coord_map.add(cf_name, coord)
         return factory_defn
 
     def _get_dim_names(self, cube):
@@ -596,13 +617,12 @@ class Saver():
             if coords:
                 coord = coords[0]
 
-                dim_name = self._coord_netcdf_variable_name(cube, coord)
+                dim_name = self._get_coord_variable_name(cube, coord)
                 # Add only dimensions that have not already been added.
                 if coord not in self._dim_coords:
                     # Determine unique dimension name
                     while (dim_name in self._existing_dim or
-                           dim_name in
-                           [item.names for item in self._cf_variable]):
+                           dim_name in self._name_coord_map.names()):
                         dim_name = self._increment_name(dim_name)
 
                     # Update names added, current cube dim names used
@@ -622,8 +642,7 @@ class Saver():
                         while (dim_name in self._existing_dim and
                                self._existing_dim[dim_name] !=
                                cube.shape[dim] or
-                               dim_name in
-                               [item.names for item in self._cf_variable]):
+                               dim_name in self._name_coord_map.names()):
                             dim_name = self._increment_name(dim_name)
                         # Update dictionary with new entry
                         self._existing_dim[dim_name] = cube.shape[dim]
@@ -667,8 +686,9 @@ class Saver():
 
         return coord.standard_name, coord.long_name, units
 
-    def _create_bounds(self, coord, cf_var, cf_name):
+    def _create_cf_bounds(self, coord, cf_var, cf_name):
         """
+        Create the associated CF-netCDF bounds variable.
 
         Args:
 
@@ -701,7 +721,7 @@ class Saver():
                 cf_var.dimensions + (bounds_dimension_name,))
             cf_var_bounds[:] = coord.bounds
 
-    def _cube_netcdf_variable_name(self, cube):
+    def _get_cube_variable_name(self, cube):
         """
         Returns a CF-netCDF variable name for the given cube.
 
@@ -723,7 +743,7 @@ class Saver():
 
         return cf_name
 
-    def _coord_netcdf_variable_name(self, cube, coord):
+    def _get_coord_variable_name(self, cube, coord):
         """
         Returns a CF-netCDF variable name for the given coordinate.
 
@@ -780,7 +800,7 @@ class Saver():
             The string name of the associated CF-netCDF variable saved.
 
         """
-        cf_name = self._coord_netcdf_variable_name(cube, coord)
+        cf_name = self._get_coord_variable_name(cube, coord)
         while cf_name in self._dataset.variables:
             cf_name = self._increment_name(cf_name)
 
@@ -839,7 +859,7 @@ class Saver():
             cf_var[:] = coord.points
 
             # Create the associated CF-netCDF bounds variable.
-            self._create_bounds(coord, cf_var, cf_name)
+            self._create_cf_bounds(coord, cf_var, cf_name)
 
         # Deal with CF-netCDF units and standard name.
         standard_name, long_name, units = self._cf_coord_identity(coord)
@@ -1028,7 +1048,7 @@ class Saver():
             The newly created CF-netCDF data variable.
 
         """
-        cf_name = self._cube_netcdf_variable_name(cube)
+        cf_name = self._get_cube_variable_name(cube)
         while cf_name in self._dataset.variables:
             cf_name = self._increment_name(cf_name)
 
@@ -1075,6 +1095,9 @@ class Saver():
 
         if cell_methods:
             cf_var.cell_methods = cell_methods
+
+        # Create the CF-netCDF grid mapping.
+        self._create_cf_grid_mapping(cube, cf_var)
 
         return cf_var
 
