@@ -88,34 +88,62 @@ _FACTORY_DEFNS = {
         formula_terms_format='a: {delta} b: {sigma} orog: {orography}'), }
 
 
-class CfNameCoordMap(object):
-    NameCoordMap = collections.namedtuple('NameCoordMap', ['name', 'coord'])
+class CFNameCoordMap(object):
+    """Provide a simple CF name to CF coordinate mapping."""
+
+    _Map = collections.namedtuple('_Map', ['name', 'coord'])
+
     def __init__(self):
-        self.names_coords = []
+        self._map = []
 
-    def add(self, name, coord):
-        """Add name coordinate pair"""
-        self.names_coords.append(CfNameCoordMap.NameCoordMap(name, coord))
+    def append(self, name, coord):
+        """
+        Append the given name and coordinate pair to the mapping.
 
+        Args:
+
+        * name:
+            CF name of the associated coordinate.
+
+        * coord:
+            The coordinate of the associated CF name.
+
+        """
+        self._map.append(CFNameCoordMap._Map(name, coord))
+
+    @property
     def names(self):
-        """Return all names"""
-        return [pair.name for pair in self.names_coords]
+        """Return all the CF names."""
 
+        return [pair.name for pair in self._map]
+
+    @property
     def coords(self):
-        """Return all coordinates"""
-        return [pair.coord for pair in self.names_coords]
+        """Return all the coordinates."""
 
-    def name2coord(self, name):
-        """Return the coord given a name"""
-        for pair in self.names_coords:
-            if pair.name == name:
-                return pair.coord
+        return [pair.coord for pair in self._map]
 
-    def coord2name(self, coord):
-        """Return the name given a coord"""
-        for pair in self.names_coords:
-            if pair.coord == coord:
-                return pair.name
+    def name(self, coord):
+        result = None
+        for pair in self._map:
+            if coord == pair.coord:
+                result = pair.name
+                break
+        if result is None:
+            msg = 'Coordinate is not mapped, {!r}'.format(coord)
+            raise KeyError(msg)
+        return result
+
+    def coord(self, name):
+        result = None
+        for pair in self._map:
+            if name == pair.name:
+                result = pair.coord
+                break
+        if result is None:
+            msg = 'Name is not mapped, {!r}'.format(name)
+            raise KeyError(msg)
+        return result
 
 
 def _pyke_kb_engine():
@@ -424,7 +452,7 @@ class Saver(object):
                              netcdf_format)
 
         # All persistent variables
-        self._name_coord_map = CfNameCoordMap()
+        self._name_coord_map = CFNameCoordMap()
         """CF name mapping with iris coordinates"""
         self._dim_coords = []
         """List of dimension coordinates added to the file"""
@@ -546,12 +574,12 @@ class Saver(object):
         # Add CF-netCDF variables for the associated auxiliary coordinates.
         for coord in sorted(cube.aux_coords, key=lambda coord: coord.name()):
             # Create the associated coordinate CF-netCDF variable.
-            if coord not in self._name_coord_map.coords():
+            if coord not in self._name_coord_map.coords:
                 cf_name = self._create_cf_variable(cube, dimension_names,
                                                    coord, factory_defn)
-                self._name_coord_map.add(cf_name, coord)
+                self._name_coord_map.append(cf_name, coord)
             else:
-                cf_name = self._name_coord_map.coord2name(coord)
+                cf_name = self._name_coord_map.name(coord)
 
             if cf_name is not None:
                 auxiliary_coordinate_names.append(cf_name)
@@ -589,10 +617,10 @@ class Saver(object):
         # Ensure we create the netCDF coordinate variables first.
         for coord in cube.dim_coords:
             # Create the associated coordinate CF-netCDF variable.
-            if coord not in self._name_coord_map.coords():
+            if coord not in self._name_coord_map.coords:
                 cf_name = self._create_cf_variable(cube, dimension_names,
                                                    coord, factory_defn)
-                self._name_coord_map.add(cf_name, coord)
+                self._name_coord_map.append(cf_name, coord)
         return factory_defn
 
     def _get_dim_names(self, cube):
@@ -622,7 +650,7 @@ class Saver(object):
                 if coord not in self._dim_coords:
                     # Determine unique dimension name
                     while (dim_name in self._existing_dim or
-                           dim_name in self._name_coord_map.names()):
+                           dim_name in self._name_coord_map.names):
                         dim_name = self._increment_name(dim_name)
 
                     # Update names added, current cube dim names used
@@ -642,7 +670,7 @@ class Saver(object):
                         while (dim_name in self._existing_dim and
                                self._existing_dim[dim_name] !=
                                cube.shape[dim] or
-                               dim_name in self._name_coord_map.names()):
+                               dim_name in self._name_coord_map.names):
                             dim_name = self._increment_name(dim_name)
                         # Update dictionary with new entry
                         self._existing_dim[dim_name] = cube.shape[dim]
