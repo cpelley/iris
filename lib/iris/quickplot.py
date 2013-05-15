@@ -26,6 +26,7 @@ See also: :ref:`matplotlib <matplotlib:users-guide-index>`.
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import numpy as np
 
 import iris.config
 import iris.coords
@@ -56,7 +57,7 @@ def _title(cube_or_coord, with_units):
 
 def _label(cube, mode, result=None, ndims=2, coords=None):
     """Puts labels on the current plot using the given cube."""
-    
+
     plt.title(_title(cube, with_units=False))
 
     if result is not None:
@@ -73,12 +74,12 @@ def _label(cube, mode, result=None, ndims=2, coords=None):
                 bar.set_label(cube.units)
         # Remove the tick which is put on the colorbar by default.
         bar.ax.tick_params(length=0)
-    
+
     if coords is None:
         plot_defn = iplt._get_plot_defn(cube, mode, ndims)
     else:
         plot_defn = iplt._get_plot_defn_custom_coords_picked(cube, coords, mode, ndims=ndims)
-    
+
     if ndims == 2:
         if not iplt._can_draw_map(plot_defn.coords):
             plt.ylabel(_title(plot_defn.coords[0], with_units=True))
@@ -129,14 +130,20 @@ def animate(cube, coords, plot_func=plt.contourf, **kwargs):
     """
     kwargs.setdefault('interval', 100)
 
-    def update_animation_proj(i, anim_cube, ax):
-        plt.gca().cla()
-        im = plot_func(anim_cube[i])
+    def data_minmax(data):
+        return [np.min(data), np.max(data)]
+
+    def update_animation_proj(i, anim_cube, coords, minmax, ax):
+        plt.gcf().clf()
+        _label_with_points(cube, coords=coords)
+        im = plot_func(anim_cube[i], coords=coords,
+                       vmin=minmax[0], vmax=minmax[1])
         return im,
 
-    def update_animation(i, anim_cube, ax):
+    def update_animation(i, anim_cube, coords, minmax, ax):
         plt.gca().cla()
-        im = plot_func(anim_cube[i].data)
+        _label_with_points(cube, coords=coords)
+        im = plot_func(anim_cube[i].data, vmin=minmax[0], vmax=minmax[1])
         return im,
 
     fig = plt.figure()
@@ -145,21 +152,18 @@ def animate(cube, coords, plot_func=plt.contourf, **kwargs):
     # Requires to be turned into a list to repeat anim.
     anim_cube = list(cube.slices(coords))
     frames = xrange(len(anim_cube))
+    minmax = data_minmax(cube.data)
 
     #if using matplotlib plot function, do not set-up a projection
-    if plot_func.__module__ in ['iris.plot']: 
+    if plot_func.__module__ in ['iris.plot', 'iris.quickplot']:
         update = update_animation_proj
-    elif plot_func.__module__ in ['iris.quickplot']:
-        raise LookupError(
-            '{} not supported for animation'.format(plot_func.__module__))
     else:
         update = update_animation
 
     ani = animation.FuncAnimation(fig, update,
                                   frames=frames,
-                                  fargs=(anim_cube, None),
-                                  **kwargs
-                                  )
+                                  fargs=(anim_cube, coords, minmax, None),
+                                  **kwargs)
     plt.show()
 
 
@@ -176,11 +180,11 @@ def contour(cube, *args, **kwargs):
         contour(cube, N)
 
     Supply a sequence *V* to use explicitly defined levels::
-        
+
         contour(cube, V)
-    
+
     See :func:`iris.plot.contour` for details of valid keyword arguments.
-    
+
     """
     coords = kwargs.get('coords')
     result = iplt.contour(cube, *args, **kwargs)
@@ -191,7 +195,7 @@ def contour(cube, *args, **kwargs):
 def contourf(cube, *args, **kwargs):
     """
     Draws filled contours on a labelled plot based on the given Cube.
-    
+
     With the basic call signature, contour "level" values are chosen automatically::
 
         contour(cube)
@@ -201,11 +205,11 @@ def contourf(cube, *args, **kwargs):
         contour(cube, N)
 
     Supply a sequence *V* to use explicitly defined levels::
-        
+
         contour(cube, V)
-    
+
     See :func:`iris.plot.contourf` for details of valid keyword arguments.
-    
+
     """
     coords = kwargs.get('coords')
     result = iplt.contourf(cube, *args, **kwargs)
@@ -223,9 +227,9 @@ def outline(cube, coords=None):
 def pcolor(cube, *args, **kwargs):
     """
     Draws a labelled pseudocolor plot based on the given Cube.
-    
+
     See :func:`iris.plot.pcolor` for details of valid keyword arguments.
-    
+
     """
     coords = kwargs.get('coords')
     result = iplt.pcolor(cube, *args, **kwargs)
@@ -236,9 +240,9 @@ def pcolor(cube, *args, **kwargs):
 def pcolormesh(cube, *args, **kwargs):
     """
     Draws a labelled pseudocolour plot based on the given Cube.
-    
+
     See :func:`iris.plot.pcolormesh` for details of valid keyword arguments.
-    
+
     """
     coords = kwargs.get('coords')
     result = iplt.pcolormesh(cube, *args, **kwargs)
@@ -249,9 +253,9 @@ def pcolormesh(cube, *args, **kwargs):
 def points(cube, *args, **kwargs):
     """
     Draws sample point positions on a labelled plot based on the given Cube.
-    
+
     See :func:`iris.plot.points` for details of valid keyword arguments.
-    
+
     """
     coords = kwargs.get('coords')
     result = iplt.points(cube, *args, **kwargs)
@@ -262,9 +266,9 @@ def points(cube, *args, **kwargs):
 def plot(cube, *args, **kwargs):
     """
     Draws a labelled line plot based on the given Cube.
-    
+
     See :func:`iris.plot.plot` for details of valid keyword arguments.
-    
+
     """
     coords = kwargs.get('coords')
     result = iplt.plot(cube, *args, **kwargs)
