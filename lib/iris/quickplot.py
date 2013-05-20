@@ -99,7 +99,7 @@ def _label_with_points(cube, result=None, ndims=2, coords=None):
     _label(cube, iris.coords.POINT_MODE, result, ndims, coords)
 
 
-def animate(cube, coords, plot_func=plt.contourf, **kwargs):
+def animate(cube, coords, plot_func=plt.contourf, norm=True, **kwargs):
     """
     Animates the given cube across a given coordinate.
 
@@ -131,7 +131,11 @@ def animate(cube, coords, plot_func=plt.contourf, **kwargs):
     kwargs.setdefault('interval', 100)
 
     def data_minmax(data):
-        return [np.min(data), np.max(data)]
+        if norm is not None:
+            minmax = [np.min(data), np.max(data)]
+        else:
+            minmax = [None, None]
+        return minmax 
 
     def update_animation_proj(i, anim_cube, coords, minmax, ax):
         plt.gcf().clf()
