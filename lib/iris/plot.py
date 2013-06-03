@@ -30,6 +30,7 @@ import matplotlib.collections as mpl_collections
 import matplotlib.dates as mpl_dates
 import matplotlib.transforms as mpl_transforms
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
 import numpy as np
 import numpy.ma as ma
@@ -436,6 +437,72 @@ def _map_common(draw_method_name, arg_func, mode, cube, plot_defn,
 
     # Draw the contour lines/filled contours.
     return draw_method(*new_args, **kwargs)
+
+
+def animate(cube, coords, plot_func=None, vmax=True, **kwargs):
+    """
+    Animates the given cube across a given coordinate.
+
+    Args:
+
+    * cube (:class:`iris.cube.Cube`):
+        A :class:`iris.cube.Cube`, to be animated.
+
+    Kwargs:
+
+    * coords: list of :class:`~iris.coords.Coord` objects or coordinate names
+        Slice cube according to the specified coordinates and animate along
+        chosen coordinates.
+
+    * plot_func: :class:`~matplotlib.pyplot` or :class:`~iris.plot` plotting function
+        Plotting function to animate.
+
+    * norm:
+        Normalise frame colors according to data limits.
+
+    See :func:`matplotlib.animation.FuncAnimation` for details of other valid
+    keyword arguments.
+
+    """
+    kwargs.setdefault('interval', 100)
+
+    if (cube.data.min(), cube.data.max())
+
+    def update_animation_proj(i, anim_cube, ax, vmax):
+        # Update frame using projection
+        plt.gca().cla()
+        im = plot_func(anim_cube[i], vmax)
+        return im,
+
+    def update_animation(i, anim_cube, ax, vmax):
+        # Update frame without projection
+        plt.gca().cla()
+        im = plot_func(anim_cube[i].data, vmax)
+        return im,
+
+    fig = plt.figure()
+
+    # Slice cube according to the specified coordinates
+    # Requires to be turned into a list to repeat anim.
+    anim_cube = list(cube.slices(coords))
+    frames = xrange(len(anim_cube))
+
+    #if using matplotlib plot function, do not set-up a projection
+    if plot_func.__module__ in ['iris.plot']: 
+        update = update_animation_proj
+    elif plot_func.__module__ in ['matplotlib.pyplot']:
+        update = update_animation
+    # capture providing quickplot as input
+    else:
+        raise LookupError(
+            '{} not supported for animation'.format(plot_func.__module__))
+
+    ani = animation.FuncAnimation(fig, update,
+                                  frames=frames,
+                                  fargs=(anim_cube, None, vmax),
+                                  **kwargs
+                                  )
+    plt.show()
 
 
 def contour(cube, *args, **kwargs):
