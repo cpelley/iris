@@ -439,7 +439,7 @@ def _map_common(draw_method_name, arg_func, mode, cube, plot_defn,
     return draw_method(*new_args, **kwargs)
 
 
-def animate(cube, coords, plot_func=None, vmax=True, **kwargs):
+def animate(cube, plot_func, range=True, *args, **kwargs):
     """
     Animates the given cube across a given coordinate.
 
@@ -448,16 +448,16 @@ def animate(cube, coords, plot_func=None, vmax=True, **kwargs):
     * cube (:class:`iris.cube.Cube`):
         A :class:`iris.cube.Cube`, to be animated.
 
+    * plot_func: :class:`~matplotlib.pyplot` or :class:`~iris.plot` plotting function
+        Plotting function to animate.
+
     Kwargs:
 
     * coords: list of :class:`~iris.coords.Coord` objects or coordinate names
         Slice cube according to the specified coordinates and animate along
         chosen coordinates.
 
-    * plot_func: :class:`~matplotlib.pyplot` or :class:`~iris.plot` plotting function
-        Plotting function to animate.
-
-    * norm:
+    * range:
         Normalise frame colors according to data limits.
 
     See :func:`matplotlib.animation.FuncAnimation` for details of other valid
@@ -465,41 +465,68 @@ def animate(cube, coords, plot_func=None, vmax=True, **kwargs):
 
     """
     kwargs.setdefault('interval', 100)
+    coords = kwargs.pop('coords', None)
 
-    if (cube.data.min(), cube.data.max())
-
-    def update_animation_proj(i, anim_cube, ax, vmax):
+    def update_animation_proj(i, anim_cube, ax, range, coords):
         # Update frame using projection
         plt.gca().cla()
-        im = plot_func(anim_cube[i], vmax)
+        im = plot_func(anim_cube[i], vmin=range[0], vmax=range[1],
+                       coords=coords)
         return im,
 
-    def update_animation(i, anim_cube, ax, vmax):
-        # Update frame without projection
+    def update_animation(i, anim_cube, ax, range, coords):
+        # Update frame indexed based
         plt.gca().cla()
-        im = plot_func(anim_cube[i].data, vmax)
+        im = plot_func(anim_cube[i].data, vmin=range[0], vmax=range[1])
         return im,
 
-    fig = plt.figure()
+    # Determine dimensionality of plot
+    if plot_func.__name__ in ['contour', 'contourf', 'pcolor', 'pcolormesh']:
+        ndims = 2
+    elif plot_func.__name__ in ['plot', 'points']:
+        ndims = 1
+
+    # Check cube dimensionality against plot for animating
+    if cube.ndim-1 != ndims:
+        msg = 'Cube must be %s-dimensional. Got %s dimensions.'
+        raise ValueError(msg % (ndims+1, cube.data.ndim))
+
+    # Set default coords
+    mode = iris.coords.POINT_MODE
+    if coords is not None:
+        plot_defn = _get_plot_defn_custom_coords_picked(cube[0], coords, mode,
+                                                        ndims=ndims)
+    else:
+        plot_defn = _get_plot_defn(cube[0], mode, ndims=ndims)
+    coords = plot_defn.coords
+    coords = coords[::-1]
 
     # Slice cube according to the specified coordinates
     # Requires to be turned into a list to repeat anim.
     anim_cube = list(cube.slices(coords))
     frames = xrange(len(anim_cube))
 
+    if range == True:
+        range = (min([cc.data.min() for cc in anim_cube]),
+                 max([cc.data.max() for cc in anim_cube]))
+    else:
+        range = [None, None]
+
+    fig = plt.figure()
+
     #if using matplotlib plot function, do not set-up a projection
     if plot_func.__module__ in ['iris.plot']: 
         update = update_animation_proj
     elif plot_func.__module__ in ['matplotlib.pyplot']:
         update = update_animation
-    # capture providing quickplot as input
+    # capture providing other plotting classes as input (eg. quickplot)
     else:
         raise LookupError(
             '{} not supported for animation'.format(plot_func.__module__))
 
     ani = animation.FuncAnimation(fig, update,
                                   frames=frames,
-                                  fargs=(anim_cube, None, vmax),
+                                  fargs=(anim_cube, None, range, coords),
                                   **kwargs
                                   )
     plt.show()
