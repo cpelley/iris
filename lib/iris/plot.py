@@ -30,7 +30,6 @@ import matplotlib.collections as mpl_collections
 import matplotlib.dates as mpl_dates
 import matplotlib.transforms as mpl_transforms
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
 import numpy as np
 import numpy.ma as ma
@@ -437,99 +436,6 @@ def _map_common(draw_method_name, arg_func, mode, cube, plot_defn,
 
     # Draw the contour lines/filled contours.
     return draw_method(*new_args, **kwargs)
-
-
-def animate(cube, plot_func, *args, **kwargs):
-    """
-    Animates the given cube across a given coordinate.
-
-    Args:
-
-    * cube (:class:`iris.cube.Cube`):
-        A :class:`iris.cube.Cube`, to be animated.
-
-    * plot_func: :class:`~matplotlib.pyplot` or :class:`~iris.plot` plotting function
-        Plotting function to animate.
-
-    Kwargs:
-
-    * coords: list of :class:`~iris.coords.Coord` objects or coordinate names
-        Slice cube according to the specified coordinates and animate along
-        chosen coordinates.
-
-    * vmin,vmax:
-        If not None, either or both of these values will be supplied to the
-        :class:`~matplotlib.colors.Normalize` instance, overriding the default
-        color scaling based on levels.  Default values are determined by the
-        min-max animation data.
-
-    See :func:`matplotlib.animation.FuncAnimation` for details of other valid
-    keyword arguments.
-
-    """
-    kwargs.setdefault('interval', 100)
-    coords = kwargs.pop('coords', None)
-
-    def update_animation_proj(i, anim_cube, ax, vmin, vmax, coords):
-        # Update frame using projection
-        plt.gca().cla()
-        im = plot_func(anim_cube[i], vmin=vmin, vmax=vmax, coords=coords)
-        return im,
-
-    def update_animation(i, anim_cube, ax, vmin, vmax, coords):
-        # Update frame indexed based
-        plt.gca().cla()
-        im = plot_func(anim_cube[i].data, vmin=vmin, vmax=vmax)
-        return im,
-
-    # Determine dimensionality of plot
-    if plot_func.__name__ in ['contour', 'contourf', 'pcolor', 'pcolormesh']:
-        ndims = 2
-    elif plot_func.__name__ in ['plot', 'points']:
-        ndims = 1
-
-    # Check cube dimensionality against plot for animating
-    if cube.ndim-1 != ndims:
-        msg = 'Cube must be %s-dimensional. Got %s dimensions.'
-        raise ValueError(msg % (ndims+1, cube.data.ndim))
-
-    # Set default coords
-    mode = iris.coords.POINT_MODE
-    if coords is not None:
-        plot_defn = _get_plot_defn_custom_coords_picked(cube[0], coords, mode,
-                                                        ndims=ndims)
-    else:
-        plot_defn = _get_plot_defn(cube[0], mode, ndims=ndims)
-    coords = plot_defn.coords
-    coords = coords[::-1]
-
-    # Slice cube according to the specified coordinates
-    # Requires to be turned into a list to repeat anim.
-    anim_cube = list(cube.slices(coords))
-    frames = xrange(len(anim_cube))
-
-    # Determine plot range
-    vmin = kwargs.pop('vmin', min([cc.data.min() for cc in anim_cube]))
-    vmax = kwargs.pop('vmax', max([cc.data.max() for cc in anim_cube]))
-
-    fig = plt.figure()
-
-    #if using matplotlib plot function, do not set-up a projection
-    if plot_func.__module__ in ['iris.plot']: 
-        update = update_animation_proj
-    elif plot_func.__module__ in ['matplotlib.pyplot']:
-        update = update_animation
-    # capture providing other plotting classes as input (eg. quickplot)
-    else:
-        raise LookupError(
-            '{} not supported for animation'.format(plot_func.__module__))
-
-    ani = animation.FuncAnimation(fig, update,
-                                  frames=frames,
-                                  fargs=(anim_cube, None, vmin, vmax, coords),
-                                  **kwargs
-                                  )
-    plt.show()
 
 
 def contour(cube, *args, **kwargs):

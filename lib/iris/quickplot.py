@@ -29,7 +29,6 @@ import matplotlib.pyplot as plt
 import iris.config
 import iris.coords
 import iris.plot as iplt
-import cartopy.crs as ccrs
 
 
 def _title(cube_or_coord, with_units):
