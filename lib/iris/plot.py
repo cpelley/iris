@@ -439,7 +439,7 @@ def _map_common(draw_method_name, arg_func, mode, cube, plot_defn,
     return draw_method(*new_args, **kwargs)
 
 
-def animate(cube, plot_func, range=True, *args, **kwargs):
+def animate(cube, plot_func, *args, **kwargs):
     """
     Animates the given cube across a given coordinate.
 
@@ -457,8 +457,11 @@ def animate(cube, plot_func, range=True, *args, **kwargs):
         Slice cube according to the specified coordinates and animate along
         chosen coordinates.
 
-    * range:
-        Normalise frame colors according to data limits.
+    * vmin,vmax:
+        If not None, either or both of these values will be supplied to the
+        :class:`~matplotlib.colors.Normalize` instance, overriding the default
+        color scaling based on levels.  Default values are determined by the
+        min-max animation data.
 
     See :func:`matplotlib.animation.FuncAnimation` for details of other valid
     keyword arguments.
@@ -467,17 +470,16 @@ def animate(cube, plot_func, range=True, *args, **kwargs):
     kwargs.setdefault('interval', 100)
     coords = kwargs.pop('coords', None)
 
-    def update_animation_proj(i, anim_cube, ax, range, coords):
+    def update_animation_proj(i, anim_cube, ax, vmin, vmax, coords):
         # Update frame using projection
         plt.gca().cla()
-        im = plot_func(anim_cube[i], vmin=range[0], vmax=range[1],
-                       coords=coords)
+        im = plot_func(anim_cube[i], vmin=vmin, vmax=vmax, coords=coords)
         return im,
 
-    def update_animation(i, anim_cube, ax, range, coords):
+    def update_animation(i, anim_cube, ax, vmin, vmax, coords):
         # Update frame indexed based
         plt.gca().cla()
-        im = plot_func(anim_cube[i].data, vmin=range[0], vmax=range[1])
+        im = plot_func(anim_cube[i].data, vmin=vmin, vmax=vmax)
         return im,
 
     # Determine dimensionality of plot
@@ -506,11 +508,9 @@ def animate(cube, plot_func, range=True, *args, **kwargs):
     anim_cube = list(cube.slices(coords))
     frames = xrange(len(anim_cube))
 
-    if range == True:
-        range = (min([cc.data.min() for cc in anim_cube]),
-                 max([cc.data.max() for cc in anim_cube]))
-    else:
-        range = [None, None]
+    # Determine plot range
+    vmin = kwargs.pop('vmin', min([cc.data.min() for cc in anim_cube]))
+    vmax = kwargs.pop('vmax', max([cc.data.max() for cc in anim_cube]))
 
     fig = plt.figure()
 
@@ -526,7 +526,7 @@ def animate(cube, plot_func, range=True, *args, **kwargs):
 
     ani = animation.FuncAnimation(fig, update,
                                   frames=frames,
-                                  fargs=(anim_cube, None, range, coords),
+                                  fargs=(anim_cube, None, vmin, vmax, coords),
                                   **kwargs
                                   )
     plt.show()
