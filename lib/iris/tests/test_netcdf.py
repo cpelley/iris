@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -33,7 +33,7 @@ import iris
 import iris.std_names
 import iris.util
 import iris.coord_systems as icoord_systems
-import stock
+import iris.tests.stock as stock
 
 
 @iris.tests.skip_data
@@ -93,6 +93,14 @@ class TestNetCDFLoad(tests.IrisTest):
                                  'small_rotPole_precipitation.nc')))
         self.assertCML(cube, ('netcdf',
                               'netcdf_rotated_xyt_precipitation.cml'))
+
+    def test_load_tmerc_grid_and_clim_bounds(self):
+        # Test loading a single CF-netCDF file with a transverse Mercator
+        # grid_mapping and a time variable with climatology.
+        cube = iris.load_cube(
+            tests.get_data_path(('NetCDF', 'transverse_mercator',
+                                 'tmean_1910_1910.nc')))
+        self.assertCML(cube, ('netcdf', 'netcdf_tmerc_and_climatology.cml'))
 
     def test_cell_methods(self):
         # Test exercising CF-netCDF cell method parsing.
@@ -196,7 +204,6 @@ class TestSave(tests.IrisTest):
             self.assertCDL(filename, ('netcdf', 'netcdf_save_no_name.cdl'))
 
 
-@iris.tests.skip_data
 class TestNetCDFSave(tests.IrisTest):
     def setUp(self):
         self.cubell = iris.cube.Cube(np.arange(4).reshape(2, 2),
@@ -232,6 +239,7 @@ class TestNetCDFSave(tests.IrisTest):
                                     var_name='temp3',
                                     units='K')
 
+    @iris.tests.skip_data
     def test_netcdf_save_format(self):
         # Read netCDF input file.
         file_in = tests.get_data_path(
@@ -274,6 +282,7 @@ class TestNetCDFSave(tests.IrisTest):
 
         os.remove(file_out)
 
+    @iris.tests.skip_data
     def test_netcdf_save_single(self):
         # Test saving a single CF-netCDF file.
         # Read PP input file.
@@ -292,6 +301,7 @@ class TestNetCDFSave(tests.IrisTest):
 
     # TODO investigate why merge now make time an AuxCoord rather than a
     # DimCoord and why forecast_period is 'preferred'.
+    @iris.tests.skip_data
     def test_netcdf_save_multi2multi(self):
         # Test saving multiple CF-netCDF files.
         # Read PP input file.
@@ -311,6 +321,7 @@ class TestNetCDFSave(tests.IrisTest):
                                       'netcdf_save_multi_%d.cdl' % index))
             os.remove(file_out)
 
+    @iris.tests.skip_data
     def test_netcdf_save_multi2single(self):
         # Test saving multiple cubes to a single CF-netCDF file.
         # Read PP input file.
@@ -348,7 +359,7 @@ class TestNetCDFSave(tests.IrisTest):
         self.assertCDL(file_out, ('netcdf', 'netcdf_save_samevar.cdl'))
         os.remove(file_out)
 
-    def test_netcdf_multi_wtih_coords(self):
+    def test_netcdf_multi_with_coords(self):
         # Testing the saving of a cublist with coordinates.
         lat = iris.coords.DimCoord(np.arange(2),
                                    long_name=None, var_name='lat',
@@ -393,6 +404,29 @@ class TestNetCDFSave(tests.IrisTest):
         self.assertCDL(file_out, ('netcdf', 'netcdf_save_samedimcoord.cdl'))
         os.remove(file_out)
 
+    def test_netcdf_multi_conflict_name_dup_coord(self):
+        # Duplicate coordinates with modified variable names lookup.
+        latitude1 = iris.coords.DimCoord(np.arange(10),
+                                         standard_name='latitude')
+        time2 = iris.coords.DimCoord(np.arange(2),
+                                     standard_name='time')
+        latitude2 = iris.coords.DimCoord(np.arange(2),
+                                         standard_name='latitude')
+
+        self.cube6.add_dim_coord(latitude1, 0)
+        self.cube.add_dim_coord(latitude2[:], 1)
+        self.cube.add_dim_coord(time2[:], 0)
+
+        cubes = iris.cube.CubeList([self.cube, self.cube6, self.cube6.copy()])
+        file_out = iris.util.create_temp_filename(suffix='.nc')
+        iris.save(cubes, file_out)
+
+        # Check the netCDF file against CDL expected output.
+        self.assertCDL(file_out, ('netcdf',
+                                  'multi_dim_coord_slightly_different.cdl'))
+        os.remove(file_out)
+
+    @iris.tests.skip_data
     def test_netcdf_hybrid_height(self):
         # Test saving a CF-netCDF file which contains a hybrid height
         # (i.e. dimensionless vertical) coordinate.
@@ -416,6 +450,7 @@ class TestNetCDFSave(tests.IrisTest):
 
         os.remove(file_out)
 
+    @iris.tests.skip_data
     def test_netcdf_save_ndim_auxiliary(self):
         # Test saving CF-netCDF with multi-dimensional auxiliary coordinates.
         # Read netCDF input file.
@@ -509,8 +544,10 @@ class TestNetCDFSave(tests.IrisTest):
         self.assertCDL(file_out, ('netcdf', 'netcdf_save_conf_name.cdl'))
         os.remove(file_out)
 
+    @iris.tests.skip_data
     def test_trajectory(self):
-        cube = iris.load_cube(iris.sample_data_path('air_temp.pp'))
+        file_in = tests.get_data_path(('PP', 'aPPglob1', 'global.pp'))
+        cube = iris.load_cube(file_in)
 
         # extract a trajectory
         xpoint = cube.coord('longitude').points[:10]

@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -173,6 +173,29 @@ def load_files(filenames, callback):
             handler_map[handling_format_spec].append(fn)
     
     # Call each iris format handler with the approriate filenames
+    for handling_format_spec, fnames in handler_map.iteritems():
+        for cube in handling_format_spec.handler(fnames, callback):
+            yield cube
+
+
+def load_http(urls, callback):
+    """
+    Takes a list of urls and a callback function, and returns a generator
+    of Cubes from the given URLs.
+    
+    .. note::
+
+        Typically, this function should not be called directly; instead, the
+        intended interface for loading is :func:`iris.load`.
+
+    """
+    # Create default dict mapping iris format handler to its associated filenames
+    handler_map = collections.defaultdict(list)
+    for url in urls:
+        handling_format_spec = iris.fileformats.FORMAT_AGENT.get_spec(url, None)
+        handler_map[handling_format_spec].append(url)
+
+    # Call each iris format handler with the appropriate filenames
     for handling_format_spec, fnames in handler_map.iteritems():
         for cube in handling_format_spec.handler(fnames, callback):
             yield cube

@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -41,7 +41,6 @@ import iris.exceptions
 import iris.fileformats.mosig_cf_map
 import iris.fileformats.um_cf_map
 import iris.unit
-
 
 RuleResult = collections.namedtuple('RuleResult', ['cube', 'matching_rules', 'factories'])
 Factory = collections.namedtuple('Factory', ['factory_class', 'args'])
@@ -261,6 +260,38 @@ def regular_step(coord):
     if not np.allclose(diffs, avdiff, rtol=0.001):  # TODO: This value is set for test_analysis to pass... 
         raise iris.exceptions.CoordinateNotRegularError("Coord %s is not regular" % coord.name())
     return avdiff.astype(coord.points.dtype)
+
+
+def calculate_forecast_period(time, forecast_reference_time):
+    """
+    Return the forecast period in hours derived from time and
+    forecast_reference_time scalar coordinates.
+
+    """
+    if time.points.size != 1:
+        raise ValueError('Expected a time coordinate with a single '
+                         'point. {!r} has {} points.'.format(time.name(),
+                                                             time.points.size))
+
+    if not time.has_bounds():
+        raise ValueError('Expected a time coordinate with bounds.')
+
+    if forecast_reference_time.points.size != 1:
+        raise ValueError('Expected a forecast_reference_time coordinate '
+                         'with a single point. {!r} has {} '
+                         'points.'.format(forecast_reference_time.name(),
+                                          forecast_reference_time.points.size))
+
+    origin = time.units.origin.replace(time.units.origin.split()[0], 'hours')
+    units = iris.unit.Unit(origin, calendar=time.units.calendar)
+
+    # Determine start and eof of period in hours since a common epoch.
+    end = time.units.convert(time.bounds[0, 1], units)
+    start = forecast_reference_time.units.convert(
+        forecast_reference_time.points[0], units)
+    forecast_period = end - start
+
+    return forecast_period
 
 
 class Rule(object):
@@ -729,7 +760,9 @@ def _ensure_aligned(regrid_cache, src_cube, target_cube):
             if cache_key not in regrid_cache:
                 regrid_cache[cache_key] = ([src_cube.dim_coords], [src_cube])
             grids, cubes = regrid_cache[cache_key]
-
+            # 'grids' is a list of tuples of coordinates, so convert
+            # the 'target_coords' list into a tuple to be consistent.
+            target_coords = tuple(target_coords)
             try:
                 # Look for this set of target coordinates in the cache.
                 i = grids.index(target_coords)
@@ -746,7 +779,7 @@ def _ensure_aligned(regrid_cache, src_cube, target_cube):
 
 
 Loader = collections.namedtuple('Loader',
-                                ('field_generator',
+                                ('field_generator', 'field_generator_kwargs',
                                  'load_rules', 'cross_ref_rules',
                                  'log_name'))
 
@@ -759,7 +792,7 @@ def load_cubes(filenames, user_callback, loader):
         filenames = [filenames]
 
     for filename in filenames:
-        for field in loader.field_generator(filename):
+        for field in loader.field_generator(filename, **loader.field_generator_kwargs):
             # Convert the field to a Cube, logging the rules that were used
             rules_result = loader.load_rules.result(field)
             cube = rules_result.cube

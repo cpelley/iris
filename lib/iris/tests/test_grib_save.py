@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -149,10 +149,23 @@ class TestCubeSave(tests.IrisTest):
     def test_unhandled_vertical(self):
         # unhandled level type
         cube = self._load_basic()
-        cube.coord("pressure").rename("not the messiah")
+        # Adjust the 'pressure' coord to make it into an "unrecognised Z coord"
+        p_coord = cube.coord("pressure")
+        p_coord.rename("not the messiah")
+        p_coord.units = 'K'
+        p_coord.attributes['positive'] = 'up'
         saved_grib = iris.util.create_temp_filename(suffix='.grib2')
-        self.assertRaises(iris.exceptions.TranslationError, iris.save, cube, saved_grib)
+        with self.assertRaises(iris.exceptions.TranslationError):
+            iris.save(cube, saved_grib)
         os.remove(saved_grib)
+        
+    def test_scalar_int32_pressure(self):
+        # Make sure we can save a scalar int32 coordinate with unit conversion.
+        cube = self._load_basic()
+        cube.coord("pressure").points = np.array([200], dtype=np.int32)
+        cube.coord("pressure").units = "hPa"
+        with self.temp_filename(".grib2") as testfile: 
+            iris.save(cube, testfile)
 
 
 class TestHandmade(tests.IrisTest):
@@ -196,12 +209,6 @@ class TestHandmade(tests.IrisTest):
         
     def test_cube_time_no_forecast(self):
         cube = self._cube_time_no_forecast()
-        saved_grib = iris.util.create_temp_filename(suffix='.grib2')
-        self.assertRaises(iris.exceptions.TranslationError, iris.save, cube, saved_grib)
-        os.remove(saved_grib)
-
-    def test_cube_with_forecast(self):
-        cube = self._cube_with_forecast()
         saved_grib = iris.util.create_temp_filename(suffix='.grib2')
         self.assertRaises(iris.exceptions.TranslationError, iris.save, cube, saved_grib)
         os.remove(saved_grib)

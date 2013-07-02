@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -42,6 +42,38 @@ def itab_callback(cube, field, filename):
 
 @iris.tests.skip_data
 class TestPPSave(tests.IrisTest, pp.PPTest):
+    def test_no_forecast_time(self):
+        cube = stock.lat_lon_cube()
+        coord = iris.coords.DimCoord(24,
+                                     standard_name='time',
+                                     units='hours since epoch')
+        cube.add_aux_coord(coord)
+        self.assertCML(cube, ['cube_to_pp', 'no_forecast_time.cml'])
+
+        reference_txt_path = tests.get_result_path(('cube_to_pp', 'no_forecast_time.txt'))
+        with self.cube_save_test(reference_txt_path, reference_cubes=cube) as temp_pp_path:
+            iris.save(cube, temp_pp_path)
+
+    def test_no_forecast_period(self):
+        cube = stock.lat_lon_cube()
+        # Add a bounded scalar time coord and a forecast_reference_time.
+        time_coord = iris.coords.DimCoord(
+            10.958333, standard_name='time',
+            units='days since 2013-05-10 12:00',
+            bounds=[10.916667, 11.0])
+        cube.add_aux_coord(time_coord)
+        forecast_reference_time = iris.coords.DimCoord(
+            2.0, standard_name='forecast_reference_time',
+            units='weeks since 2013-05-07')
+        cube.add_aux_coord(forecast_reference_time)
+
+        self.assertCML(cube, ['cube_to_pp', 'no_forecast_period.cml'])
+        reference_txt_path = tests.get_result_path(('cube_to_pp',
+                                                    'no_forecast_period.txt'))
+        with self.cube_save_test(reference_txt_path, reference_cubes=cube) as \
+                temp_pp_path:
+            iris.save(cube, temp_pp_path)
+
     def test_pp_save_rules(self):
         # Test pp save rules without user rules.
 
@@ -180,8 +212,33 @@ class FakePPEnvironment(object):
         return iris.coord_systems.GeogCS(6371229.0)
 
 
-@iris.tests.skip_data
-class TestPPSaveRules(tests.IrisTest):  
+class TestPPSaveRules(tests.IrisTest, pp.PPTest):
+    def test_default_coord_system(self):
+        GeogCS = iris.coord_systems.GeogCS
+        cube = iris.tests.stock.lat_lon_cube()
+        reference_txt_path = tests.get_result_path(('cube_to_pp',
+                                                    'default_coord_system.txt'))
+        # Remove all coordinate systems.
+        for coord in cube.coords():
+            coord.coord_system = None
+        # Ensure no coordinate systems available.
+        self.assertIsNone(cube.coord_system(GeogCS))
+        self.assertIsNone(cube.coord_system(None))
+        with self.cube_save_test(reference_txt_path, reference_cubes=cube) as \
+                temp_pp_path:
+            # Save cube to PP with no coordinate system.
+            iris.save(cube, temp_pp_path)
+            pp_cube = iris.load_cube(temp_pp_path)
+            # Ensure saved cube has the default coordinate system.
+            self.assertIsInstance(pp_cube.coord_system(GeogCS),
+                                  iris.coord_systems.GeogCS)
+            self.assertIsNotNone(pp_cube.coord_system(None))
+            self.assertIsInstance(pp_cube.coord_system(None),
+                                  iris.coord_systems.GeogCS)
+            self.assertIsNotNone(pp_cube.coord_system())
+            self.assertIsInstance(pp_cube.coord_system(),
+                                  iris.coord_systems.GeogCS)
+
     def lbproc_from_pp(self, filename):
         # Gets the lbproc field from the ppfile
         pp_file = iris.fileformats.pp.load(filename)

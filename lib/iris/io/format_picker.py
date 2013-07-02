@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -53,6 +53,9 @@ import os
 import struct
 
 
+from iris.io import decode_uri
+
+
 class FormatAgent(object):
     """
     The FormatAgent class is the containing object which is responsible for identifying the format of a given file
@@ -87,23 +90,37 @@ class FormatAgent(object):
     
     def get_spec(self, basename, buffer_obj):
         """
-        Pick the first FormatSpecification which can handle the given filename and file/buffer object.
+        Pick the first FormatSpecification which can handle the given
+        filename and file/buffer object.
+
+        .. note::
+
+            ``buffer_obj`` may be ``None`` when a seekable file handle is not
+            feasible (such as over the http protocol). In these cases only the
+            format specifications which do not require a file handle are
+            tested.
+
         """
         element_cache = {}
         for format_spec in self._format_specs:
+            # For the case where a buffer_obj is None (such as for the
+            # http protocol) skip any specs which require a fh - they
+            # don't match.
+            if buffer_obj is None and format_spec.file_element.requires_fh:
+                continue
             
             fmt_elem = format_spec.file_element
             fmt_elem_value = format_spec.file_element_value
             
-            # cache the results for each file element   
+            # cache the results for each file element
             if fmt_elem.name not in element_cache:
                 # N.B. File oriented as this is assuming seekable stream.
-                if buffer_obj.tell() != 0:
+                if buffer_obj is not None and buffer_obj.tell() != 0:
                     # reset the buffer if tell != 0
                     buffer_obj.seek(0)
                     
                 element_cache[fmt_elem.name] = fmt_elem.get_element(basename, buffer_obj)
-            
+
             # If we have a callable object, then call it and tests its result, otherwise test using basic equality
             if isinstance(fmt_elem_value, collections.Callable):
                 matches = fmt_elem_value(element_cache[fmt_elem.name])
@@ -196,7 +213,7 @@ class FileElement(object):
     Represents a specific aspect of a FileFormat which can be identified using the given element getter function.
     
     """
-    def __init__(self, name, element_getter_fn):
+    def __init__(self, name, element_getter_fn, requires_fh=True):
         """
         Constructs a new FileElement given a name and a file element getter function.
         
@@ -205,6 +222,7 @@ class FileElement(object):
         * name - The name (string) of what the element is representing
         * element_getter_fn - Function which takes a buffer object and returns the value of the FileElement. The 
                             function must accept a single argument of a file buffer.
+        * requires_fh - Whether this FileElement needs a file buffer.
         
         
         An example of a FileElement would be a "32-bit magic number" which can be created with::
@@ -216,6 +234,7 @@ class FileElement(object):
         """
         self._element_getter_fn = element_getter_fn
         self._name = name
+        self.requires_fh = requires_fh
     
     @property    
     def name(self):
@@ -234,20 +253,28 @@ class FileElement(object):
         return 'FileElement(%r, %r)' % (self._name, self._element_getter_fn)
 
 
-def _read_n(fh, fmt, n):
-    bytes = fh.read(n)
-    if len(bytes) != n:
+def _read_n(fh, fmt, n, offset=None):
+    if offset is not None:
+        fh.seek(offset)
+    bytes_read = fh.read(n)
+    if len(bytes_read) != n:
         raise EOFError(fh.name)
-    return struct.unpack(fmt, bytes)[0]
+    return struct.unpack(fmt, bytes_read)[0]
 
 
-MAGIC_NUMBER_32_BIT = FileElement('32-bit magic number', lambda filename, fh: 
+MAGIC_NUMBER_32_BIT = FileElement('32-bit magic number', lambda filename, fh:
                                   _read_n(fh, '>L', 4))
-MAGIC_NUMBER_64_BIT = FileElement('64-bit magic number', lambda filename, fh: 
+
+WMO_BULLETIN_HEADER_LENGTH = 21
+MAGIC_NUMBER_32_BIT_WMO_BULLETIN = FileElement(
+    '32-bit magic number with byte offset', lambda filename,
+    fh: _read_n(fh, '>L', 4, WMO_BULLETIN_HEADER_LENGTH))
+
+MAGIC_NUMBER_64_BIT = FileElement('64-bit magic number', lambda filename, fh:
                                   _read_n(fh, '>Q', 8))
-
-
 FILE_EXTENSION = FileElement('File extension', lambda basename,
                              fh: os.path.splitext(basename)[1])
 LEADING_LINE = FileElement('Leading line', lambda filename, fh: fh.readline())
-
+URI_PROTOCOL = FileElement('URI protocol',
+                           lambda uri, _: decode_uri(uri)[0],
+                           requires_fh=False)

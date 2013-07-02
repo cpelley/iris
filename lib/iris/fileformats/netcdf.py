@@ -129,7 +129,7 @@ class CFNameCoordMap(object):
     def name(self, coord):
         """
         Return the CF name, given a coordinate
-        
+
         Args:
 
         * coord:
@@ -184,14 +184,15 @@ def _pyke_kb_engine():
         tmpvar = [os.path.getmtime(os.path.join(compile_dir, fname)) for
                   fname in os.listdir(compile_dir) if not
                   fname.startswith('_')]
-        oldest_pyke_compile_file = min(tmpvar)
-        rule_age = os.path.getmtime(os.path.join(pyke_dir,
-                                                 _PYKE_RULE_BASE + '.krb'))
+        if tmpvar:
+            oldest_pyke_compile_file = min(tmpvar)
+            rule_age = os.path.getmtime(
+                os.path.join(pyke_dir, _PYKE_RULE_BASE + '.krb'))
 
-        if oldest_pyke_compile_file > rule_age:
-            # Initialise the pyke inference engine.
-            engine = knowledge_engine.engine(
-                (None, 'iris.fileformats._pyke_rules.compiled_krb'))
+            if oldest_pyke_compile_file >= rule_age:
+                # Initialise the pyke inference engine.
+                engine = knowledge_engine.engine(
+                    (None, 'iris.fileformats._pyke_rules.compiled_krb'))
 
     if engine is None:
         engine = knowledge_engine.engine(iris.fileformats._pyke_rules)
@@ -211,6 +212,13 @@ class NetCDFDataProxy(object):
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.path,
                                self.variable_name)
+
+    def __getstate__(self):
+        return {attr: getattr(self, attr) for attr in self.__slots__}
+
+    def __setstate__(self, state):
+        for key, value in state.iteritems():
+            setattr(self, key, value)
 
     def load(self, data_shape, data_type, mdi, deferred_slice):
         """
@@ -399,12 +407,12 @@ def _load_aux_factory(engine, cf, filename, cube):
 
 def load_cubes(filenames, callback=None):
     """
-    Loads cubes from a list of NetCDF filenames.
+    Loads cubes from a list of NetCDF filenames/URLs.
 
     Args:
 
     * filenames (string/list):
-        One or more NetCDF filenames to load.
+        One or more NetCDF filenames/DAP URLs to load from.
 
     Kwargs:
 
@@ -570,7 +578,8 @@ class Saver(object):
                 self._dataset.createDimension(dimension_names[0], None)
         for dim_name in dimension_names[1:]:
             if dim_name not in self._dataset.dimensions:
-                self._dataset.createDimension(dim_name, self._existing_dim[dim_name])
+                self._dataset.createDimension(dim_name,
+                                              self._existing_dim[dim_name])
 
     def _add_aux_coords(self, cube, cf_var_cube, dimension_names,
                         factory_defn):
@@ -684,6 +693,9 @@ class Saver(object):
                     dimension_names.append(dim_name)
                     self._dim_coords.append(coord)
                 else:
+                    # Return the dim_name associated with the existing
+                    # coordinate.
+                    dim_name = self._name_coord_map.name(coord)
                     dimension_names.append(dim_name)
 
             else:

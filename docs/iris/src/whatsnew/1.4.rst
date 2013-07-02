@@ -18,6 +18,17 @@ A summary of the main features added with version 1.4:
   to a directory containing the test data required by the unit tests. It can
   be set by adding a ``test_data_dir`` entry to the ``Resources`` section of
   ``site.cfg``. See :mod:`iris.config` for more details.
+* One and two dimensional cubes can be converted to and from Pandas objects.
+  See :mod:`iris.pandas` for more details.
+* Experimental support has been added to :func:`iris.load`,
+  :func:`iris.load_cube` and :func:`iris.load_cubes` for loading Cubes from
+  OPeNDAP URLs.
+* :func:`iris.experimental.raster.export_geotiff` now provides experimental
+  GeoTiff export functionality.
+* Cubes with no vertical coordinate can now be output to Grib format. In these
+  cases, "Type of first fixed surface" is set to 1, "ground or water surface".
+  ( This is a common usage for data with no defined level, but may not be
+  strictly correct - see https://github.com/SciTools/iris/issues/519 ).
 
 Bugs fixed
 ----------

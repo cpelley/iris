@@ -134,6 +134,32 @@ class MakeStdNames(Command):
         self.spawn(cmd)
 
 
+class MakePykeRules(Command):
+    """
+    Compile the PyKE CF-NetCDF loader rule base.
+
+    """
+    description = "compile CF-NetCDF loader rule base"
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    @staticmethod
+    def _pyke_rule_compile():
+        """Compile the PyKE rule base."""
+        from pyke import knowledge_engine
+        import iris.fileformats._pyke_rules
+        knowledge_engine.engine(iris.fileformats._pyke_rules)
+
+    def run(self):
+        # Compile the PyKE rules.
+        MakePykeRules._pyke_rule_compile()
+
+
 class MissingHeaderError(Exception):
     """
     Raised when one or more files do not have the required copyright
@@ -143,69 +169,10 @@ class MissingHeaderError(Exception):
     pass
 
 
-class HeaderCheck(Command):
-    """
-    Checks that all the necessary files have the copyright and licence
-    header.
-
-    """
-
-    description = "check for copyright/licence headers"
-    user_options = []
-
-    exclude_patterns = ('./setup.py',
-                        './build/*',
-                        './dist/*',
-                        './docs/iris/example_code/graphics/*.py',
-                        './docs/iris/src/developers_guide/documenting/*.py',
-                        './docs/iris/src/sphinxext/gen_gallery.py',
-                        './docs/iris/src/sphinxext/gen_rst.py',
-                        './docs/iris/src/sphinxext/plot_directive.py',
-                        './docs/iris/src/userguide/plotting_examples/*.py',
-                        './docs/iris/build/*',
-                        './lib/iris/fileformats/_pyke_rules/compiled_krb/*.py')
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        check_paths = []
-        for root, dirs, files in os.walk('.'):
-            for file in files:
-                if file.endswith('.py') or file.endswith('.c'):
-                    path = os.path.join(root, file)
-                    check_paths.append(path)
-
-        for pattern in self.exclude_patterns:
-            exclude = lambda path: not fnmatch.fnmatch(path, pattern)
-            check_paths = filter(exclude, check_paths)
-
-        bad_paths = filter(self._header_bad, check_paths)
-        if bad_paths:
-            raise MissingHeaderError(bad_paths)
-
-    def _header_bad(self, path):
-        target = '(C) British Crown Copyright 2010 - 2012, Met Office'
-        with open(path, 'rt') as text_file:
-            # Check for the header on the first line.
-            line = text_file.readline().rstrip()
-            bad = target not in line
-
-            # Check if it was an executable script, with the header
-            # starting on the second line.
-            if bad and line == '#!/usr/bin/env python':
-                line = text_file.readline().rstrip()
-                bad = target not in line
-        return bad
-
-
 class BuildPyWithExtras(build_py.build_py):
     """
     Adds the creation of the CF standard names module and compilation
-    of the pyke rules to the standard "build_py" command.
+    of the PyKE rules to the standard "build_py" command.
 
     """
     @contextlib.contextmanager
@@ -230,17 +197,14 @@ class BuildPyWithExtras(build_py.build_py):
         cmd = std_name_cmd(self.build_lib)
         self.spawn(cmd)
 
-        # Compile the pyke rules
+        # Compile the PyKE rules.
         with self.temporary_path():
-            # Compile the pyke rules
-            from pyke import knowledge_engine
-            import iris.fileformats._pyke_rules
-            e = knowledge_engine.engine(iris.fileformats._pyke_rules)
+            MakePykeRules._pyke_rule_compile()
 
 
 setup(
     name='Iris',
-    version='1.4.0-dev',
+    version='1.5.0-dev',
     url='http://scitools.github.com/iris',
     author='UK Met Office',
 
@@ -270,5 +234,5 @@ setup(
         )
     },
     cmdclass={'test': TestRunner, 'build_py': BuildPyWithExtras, 
-              'std_names': MakeStdNames, 'header_check': HeaderCheck},
+              'std_names': MakeStdNames, 'pyke_rules': MakePykeRules},
 )

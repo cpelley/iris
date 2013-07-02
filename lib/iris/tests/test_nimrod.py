@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -20,12 +20,9 @@
 # importing anything else
 import iris.tests as tests
 
-import matplotlib.pyplot as plt
 import numpy as np
-import cartopy.crs as ccrs
 
 import iris
-import iris.quickplot as qplt
 import iris.fileformats.nimrod_load_rules as nimrod_load_rules
 
 
@@ -36,22 +33,15 @@ def mock_nimrod_field():
     return field
 
 
-@iris.tests.skip_data
-class TestLoad(tests.GraphicsTest):
+class TestLoad(tests.IrisTest):
 
-    def test_load(self):
-        cube = iris.load(
-            tests.get_data_path(
-                ('NIMROD', 'uk2km', 'WO0000000003452',
-                 '201007020900_u1096_ng_ey00_visibility0180_screen_2km')))[0]
-        self.assertCML(cube, ("nimrod", "load.cml"))
-
-        ax = plt.subplot(1, 1, 1, projection=ccrs.OSGB())
-        qplt.contourf(cube, coords=["projection_x_coordinate",
-                                    "projection_y_coordinate"],
-                      levels=np.linspace(-25000, 6000, 10))
-        ax.coastlines()
-        self.check_graphic()
+    @iris.tests.skip_data
+    def test_multi_field_load(self):
+        # load a cube with two fields
+        cube = iris.load(tests.get_data_path(
+            ('NIMROD', 'uk2km', 'WO0000000003452',
+             '201007020900_u1096_ng_ey00_visibility0180_screen_2km')))
+        self.assertCML(cube, ("nimrod", "load_2flds.cml"))
 
     def test_orography(self):
         # Mock an orography field we've seen.
@@ -77,6 +67,43 @@ class TestLoad(tests.GraphicsTest):
         nimrod_load_rules.attributes(cube, field)
 
         self.assertCML(cube, ("nimrod", "mockography.cml"))
+
+    def test_levels_below_ground(self):
+        # Mock a soil temperature field we've seen.
+        field = mock_nimrod_field()
+        cube = iris.cube.Cube(np.arange(100).reshape(10, 10))
+
+        field.field_code = -1  # Not orography
+        field.reference_vertical_coord_type = field.int_mdi  # Not bounded
+        field.vertical_coord_type = 12
+        field.vertical_coord = 42
+        nimrod_load_rules.vertical_coord(cube, field)
+
+        self.assertCML(cube, ("nimrod", "levels_below_ground.cml"))
+
+    def test_period_of_interest(self):
+        # mock a pressure field
+        field = mock_nimrod_field()
+        cube = iris.cube.Cube(np.arange(100).reshape(10, 10))
+
+        field.field_code = 0
+        field.vt_year = 2013
+        field.vt_month = 5
+        field.vt_day = 7
+        field.vt_hour = 6
+        field.vt_minute = 0
+        field.vt_second = 0
+        field.dt_year = 2013
+        field.dt_month = 5
+        field.dt_day = 7
+        field.dt_hour = 6
+        field.dt_minute = 0
+        field.dt_second = 0
+        field.period_minutes = 60
+
+        nimrod_load_rules.time(cube, field)
+
+        self.assertCML(cube, ("nimrod", "period_of_interest.cml"))
 
 
 if __name__ == "__main__":

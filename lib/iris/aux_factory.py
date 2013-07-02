@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -63,6 +63,7 @@ class LazyArray(object):
     def _cached_array(self):
         if self._array is None:
             self._array = self._func()
+            del self._func
         return self._array
 
     def reshape(self, *args, **kwargs):

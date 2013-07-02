@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -33,6 +33,7 @@ import collections
 import contextlib
 import difflib
 import filecmp
+import gzip
 import logging
 import os
 import os.path
@@ -119,7 +120,16 @@ def get_data_path(relative_path):
 
     if _EXPORT_DATAPATHS_FILE is not None:
         _EXPORT_DATAPATHS_FILE.write(data_path + '\n')
-        
+
+    if isinstance(data_path, basestring) and not os.path.exists(data_path):
+        # if the file is gzipped, ungzip it and return the path of the ungzipped
+        # file.
+        gzipped_fname = data_path + '.gz'
+        if os.path.exists(gzipped_fname):
+            with gzip.open(gzipped_fname, 'rb') as gz_fh:
+                with open(data_path, 'wb') as fh:
+                    fh.writelines(gz_fh)
+
     return data_path
 
 
@@ -292,6 +302,39 @@ class IrisTest(unittest.TestCase):
     def assertArrayAlmostEqual(self, a, b):
         np.testing.assert_array_almost_equal(a, b)
 
+    def assertMaskedArrayAlmostEqual(self, a, b):
+        """
+        Check that masked arrays are almost equal. This requires the
+        masks to be identical, and the unmasked values to be almost
+        equal.
+
+        """
+        np.testing.assert_array_equal(a.mask, b.mask)
+        np.testing.assert_array_almost_equal(a, b)
+
+    def assertArrayAllClose(self, a, b, rtol=1.0e-7, atol=0.0, **kwargs):
+        """
+        Check arrays are equal, within given relative + absolute tolerances.
+
+        Args:
+
+        * a, b (array-like):
+            Two arrays to compare.
+
+        Kwargs:
+
+        * rtol, atol (float):
+            Relative and absolute tolerances to apply.
+
+        Any additional kwargs are passed to numpy.testing.assert_allclose.
+
+        Performs pointwise toleranced comparison, and raises an assertion if
+        the two are not equal 'near enough'.
+        For full details see underlying routine numpy.testing.assert_allclose.
+
+        """
+        np.testing.assert_allclose(a, b, rtol=rtol, atol=atol, **kwargs)
+
     def assertAttributesEqual(self, attr1, attr2):
         """
         Asserts two mappings (dictionaries) are equal after
@@ -417,14 +460,21 @@ class GraphicsTest(IrisTest):
 
 def skip_data(fn):
     """
-    Decorator to decide if to run the test or not based on the
-    availability of external data.
+    Decorator to choose whether to run tests, based on the availability of
+    external data.
+
+    Example usage:
+        @skip_data
+        class MyDataTests(tests.IrisTest):
+            ...
 
     """
-    valid_data = (iris.config.TEST_DATA_DIR and
-                  os.path.isdir(iris.config.TEST_DATA_DIR))
-    if valid_data and not os.environ.get('IRIS_TEST_NO_DATA'):
-        return fn
-    else:
-        skip = unittest.skip("These/this test(s) requires external data.")
-        return skip(fn)
+    no_data = (not iris.config.TEST_DATA_DIR
+               or not os.path.isdir(iris.config.TEST_DATA_DIR)
+               or os.environ.get('IRIS_TEST_NO_DATA'))
+
+    skip = unittest.skipIf(
+        condition=no_data,
+        reason='Test(s) require external data.')
+
+    return skip(fn)

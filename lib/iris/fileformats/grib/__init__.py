@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -26,14 +26,18 @@ import math  #for fmod
 import os
 import warnings
 
+import cartopy
 import numpy as np
+import numpy.ma as ma
 
 import iris.proxy
 iris.proxy.apply_proxy('gribapi', globals())
 
 import iris.coord_systems as coord_systems
+# NOTE: careful here, to avoid circular imports (as iris imports grib)
+from iris.fileformats.grib import grib_phenom_translation as gptx
+from iris.fileformats.grib import grib_save_rules
 import iris.unit
-import grib_save_rules
 
 
 
@@ -162,14 +166,21 @@ class GribWrapper(object):
         #but it flipped the data - which we don't want
         ni = self.Ni
         nj = self.Nj
+
+        # set the missing value key to get np.nan where values are missing,
+        # must be done before values are read from the message
+        gribapi.grib_set_double(self.grib_message, "missingValue", np.nan)
         self.data = self.values
         j_fast = gribapi.grib_get_long(grib_message, "jPointsAreConsecutive")
         if j_fast == 0:
             self.data = self.data.reshape(nj, ni)
         else:
             self.data = self.data.reshape(ni, nj)
-            
-        
+        # handle missing values in a sensible way
+        mask = np.isnan(self.data)
+        if mask.any():
+            self.data = ma.array(self.data, mask=mask)
+
     def _confirm_in_scope(self):
         """Ensure we have a grib flavour that we choose to support."""
         #forbid quasi-regular grids
@@ -181,16 +192,6 @@ class GribWrapper(object):
         #(uncommon entry from GRIB2 flag table 3.4, also in GRIB1)
         if self.alternativeRowScanning == 1:
             raise iris.exceptions.IrisError("alternativeRowScanning == 1 not handled.")
-        
-        #grib2 specifics
-        if self.edition == 2:
-            #forbid uncommon entries from flag table 3.3
-            if self.iDirectionIncrementGiven == 0 or self.jDirectionIncrementGiven == 0:
-                raise iris.exceptions.IrisError("Quasi-regular grids not yet handled.")
-            if self.uvRelativeToGrid == 1:
-                raise iris.exceptions.IrisError("uvRelativeToGrid == 1 "
-                                                "(in Flag table 3.3) not handled.")
-            
         
     def __getattr__(self, key):
         """Return a grib key, or one of our extra keys."""
@@ -301,7 +302,29 @@ class GribWrapper(object):
             '_x_coord_name':unknown_string, '_y_coord_name':unknown_string,
             # These are here to avoid repetition in the rules files,
             # and reduce the very long line lengths.
-            '_x_points':None, '_y_points':None}
+            '_x_points':None, '_y_points':None,
+            '_cf_data':None}
+
+        # cf phenomenon translation
+        if edition == 1:
+            # Get centre code (N.B. self.centre has default type = string)
+            centre_number = gribapi.grib_get_long(self.grib_message, "centre")
+            # Look for a known grib1-to-cf translation (or None).
+            cf_data = gptx.grib1_phenom_to_cf_info(
+                table2_version=self.table2Version,
+                centre_number=centre_number,
+                param_number=self.indicatorOfParameter)
+            self.extra_keys['_cf_data'] = cf_data
+        elif edition == 2:
+            # Don't attempt to interpret params if 'master tables version' is
+            # 255, as local params may then have same codes as standard ones.
+            if self.tablesVersion != 255:
+                # Look for a known grib2-to-cf translation (or None).
+                cf_data = gptx.grib2_phenom_to_cf_info(
+                    param_discipline=self.discipline,
+                    param_category=self.parameterCategory,
+                    param_number=self.parameterNumber)
+                self.extra_keys['_cf_data'] = cf_data
 
         #reference date
         self.extra_keys['_referenceDateTime'] = \
@@ -339,45 +362,55 @@ class GribWrapper(object):
         else:
             self.extra_keys['_phenomenonDateTime'] = self._get_verification_date()
 
+
+        #originating centre
+        #TODO #574 Expand to include sub-centre
+        self.extra_keys['_originatingCentre'] = CENTRE_TITLES.get(
+                                        centre, "unknown centre %s" % centre)
+            
+        #forecast time unit as a cm string
+        #TODO #575 Do we want PP or GRIB style forecast delta?
+        self.extra_keys['_forecastTimeUnit'] = self._timeunit_string()
+
         
         #shape of the earth
 
         #pre-defined sphere
         if self.shapeOfTheEarth == 0:
-            self.extra_keys['_coord_system'] = coord_systems.GeogCS(semi_major_axis=6367470)
+            geoid = coord_systems.GeogCS(semi_major_axis=6367470)
             
         #custom sphere
         elif self.shapeOfTheEarth == 1:
-            self.extra_keys['_coord_system'] = \
+            geoid = \
                 coord_systems.GeogCS(self.scaledValueOfRadiusOfSphericalEarth * \
                                      self.scaleFactorOfRadiusOfSphericalEarth)
                     
         #IAU65 oblate sphere
         elif self.shapeOfTheEarth == 2:
-            self.extra_keys['_coord_system'] = coord_systems.GeogCS(6378160, inverse_flattening=297.0)
+            geoid = coord_systems.GeogCS(6378160, inverse_flattening=297.0)
                 
         #custom oblate spheroid (km)
         elif self.shapeOfTheEarth == 3:
-            self.extra_keys['_coord_system'] = coord_systems.GeogCS(
+            geoid = coord_systems.GeogCS(
                 semi_major_axis=self.scaledValueOfEarthMajorAxis * self.scaleFactorOfEarthMajorAxis * 1000.0,
                 semi_minor_axis=self.scaledValueOfEarthMinorAxis * self.scaleFactorOfEarthMinorAxis * 1000.0)
             
         #IAG-GRS80 oblate spheroid
         elif self.shapeOfTheEarth == 4:
-            self.extra_keys['_coord_system'] = coord_systems.GeogCS(6378137, None, 298.257222101)
+            geoid = coord_systems.GeogCS(6378137, None, 298.257222101)
 
         #WGS84
         elif self.shapeOfTheEarth == 5:
-            self.extra_keys['_coord_system'] = \
+            geoid = \
                 coord_systems.GeogCS(6378137, inverse_flattening=298.257223563)
         
         #pre-defined sphere
         elif self.shapeOfTheEarth == 6:
-            self.extra_keys['_coord_system'] = coord_systems.GeogCS(6371229)
+            geoid = coord_systems.GeogCS(6371229)
         
         #custom oblate spheroid (m)
         elif self.shapeOfTheEarth == 7:
-            self.extra_keys['_coord_system'] = coord_systems.GeogCS(
+            geoid = coord_systems.GeogCS(
                 semi_major_axis=self.scaledValueOfEarthMajorAxis * self.scaleFactorOfEarthMajorAxis,
                 semi_minor_axis=self.scaledValueOfEarthMinorAxis * self.scaleFactorOfEarthMinorAxis)
         
@@ -387,59 +420,88 @@ class GribWrapper(object):
         else:
             raise ValueError("undefined shape of earth")
 
-
-        #rotated pole
         gridType = gribapi.grib_get_string(self.grib_message, "gridType")
-        if gridType == 'rotated_ll':
-            # Replace the llcs with a rotated one
-            southPoleLon = longitudeOfSouthernPoleInDegrees
-            southPoleLat = latitudeOfSouthernPoleInDegrees
-            # TODO: Confirm the translation from angleOfRotation to north_pole_lon (usually 0 for both)
-            self.extra_keys['_coord_system'] = \
-                iris.coord_systems.RotatedGeogCS(-southPoleLat, math.fmod(southPoleLon + 180.0, 360.0),
-                                                 self.angleOfRotation, self.extra_keys['_coord_system']) 
 
-        
-        #originating centre
-        #TODO #574 Expand to include sub-centre
-        self.extra_keys['_originatingCentre'] = CENTRE_TITLES.get(centre, "unknown centre %s" % centre)
-            
-        #forecast time unit as a cm string
-        #TODO #575 Do we want PP or GRIB style forecast delta?
-        self.extra_keys['_forecastTimeUnit'] = self._timeunit_string()
-        
-        if self.gridType=="regular_ll":
+        if gridType=="regular_ll":
             self.extra_keys['_x_coord_name'] = "longitude"
             self.extra_keys['_y_coord_name'] = "latitude"
-        else:
+            self.extra_keys['_coord_system'] = geoid
+        elif gridType == 'rotated_ll':
+            # TODO: Confirm the translation from angleOfRotation to
+            # north_pole_lon (usually 0 for both)
             self.extra_keys['_x_coord_name'] = "grid_longitude"
             self.extra_keys['_y_coord_name'] = "grid_latitude"
-
-        i_step = self.iDirectionIncrementInDegrees
-        j_step = self.jDirectionIncrementInDegrees
-        if self.iScansNegatively:
-            i_step = -i_step
-        if not self.jScansPositively:
-            j_step = -j_step
-        self._x_points = (np.arange(self.Ni, dtype=np.float64) * i_step +
-                          self.longitudeOfFirstGridPointInDegrees)
-        self._y_points = (np.arange(self.Nj, dtype=np.float64) * j_step +
-                          self.latitudeOfFirstGridPointInDegrees)
-
-        # circular x coord?
-        if "longitude" in self.extra_keys['_x_coord_name'] and self.Ni > 1:
-            # Is the gap from end to start smaller or about equal to the max step?
-            points = self._x_points
-            gap = 360.0 - abs(points[-1] - points[0]) 
-            max_step = abs(np.diff(points)).max()
-            if gap <= max_step:
-                self.extra_keys['_x_circular'] = True
+            southPoleLon = longitudeOfSouthernPoleInDegrees
+            southPoleLat = latitudeOfSouthernPoleInDegrees
+            self.extra_keys['_coord_system'] = \
+                iris.coord_systems.RotatedGeogCS(
+                                        -southPoleLat,
+                                        math.fmod(southPoleLon + 180.0, 360.0),
+                                        self.angleOfRotation, geoid) 
+        elif gridType == 'polar_stereographic':
+            self.extra_keys['_x_coord_name'] = "projection_x_coordinate"
+            self.extra_keys['_y_coord_name'] = "projection_y_coordinate"
+            
+            if self.projectionCentreFlag == 0:
+                pole_lat = 90
+            elif self.projectionCentreFlag == 1:
+                pole_lat = -90
             else:
-                try:
-                    np.testing.assert_almost_equal(gap / max_step, 1.0, decimal=3)
+                raise TranslationError("Unhandled projectionCentreFlag")
+
+            # Note: I think the grib api defaults LaDInDegrees to 60 for grib1.
+            self.extra_keys['_coord_system'] = \
+                iris.coord_systems.Stereographic(
+                    pole_lat, self.orientationOfTheGridInDegrees, 0, 0,
+                    self.LaDInDegrees, ellipsoid=geoid) 
+            
+        else:
+            raise TranslationError("unhandled grid type")
+
+        # x and y points, and circularity
+        if gridType in ["regular_ll", "rotated_ll"]:
+            i_step = self.iDirectionIncrementInDegrees
+            j_step = self.jDirectionIncrementInDegrees
+            if self.iScansNegatively:
+                i_step = -i_step
+            if not self.jScansPositively:
+                j_step = -j_step
+            self._x_points = (np.arange(self.Ni, dtype=np.float64) * i_step +
+                              self.longitudeOfFirstGridPointInDegrees)
+            self._y_points = (np.arange(self.Nj, dtype=np.float64) * j_step +
+                              self.latitudeOfFirstGridPointInDegrees)
+
+            # circular x coord?
+            if "longitude" in self.extra_keys['_x_coord_name'] and self.Ni > 1:
+                # Is the gap from end to start smaller,
+                #  or about equal to the max step?
+                points = self._x_points
+                gap = 360.0 - abs(points[-1] - points[0]) 
+                max_step = abs(np.diff(points)).max()
+                if gap <= max_step:
                     self.extra_keys['_x_circular'] = True
-                except:
-                    pass
+                else:
+                    delta = 0.001
+                    if abs(1.0 - gap / max_step) < delta:
+                        self.extra_keys['_x_circular'] = True
+
+        elif gridType == "polar_stereographic":
+            
+            # convert the starting latlon into meters
+            cartopy_crs = self.extra_keys['_coord_system'].as_cartopy_crs()
+            x1, y1 = cartopy_crs.transform_point(
+                                self.longitudeOfFirstGridPointInDegrees,
+                                self.latitudeOfFirstGridPointInDegrees,
+                                cartopy.crs.Geodetic())
+
+            self._x_points = x1 + self.DxInMetres * np.arange(self.Nx,
+                                                              dtype=np.float64)
+            self._y_points = y1 + self.DyInMetres * np.arange(self.Ny,
+                                                              dtype=np.float64)
+            
+
+        else:
+            raise TranslationError("unhandled grid type")
         
     def _get_processing_done(self):
         """Determine the type of processing that was done on the data."""
@@ -559,7 +621,7 @@ def load_cubes(filenames, callback=None):
     """Returns a generator of cubes from the given list of filenames."""
     _ensure_load_rules_loaded()
     rules = iris.fileformats.rules
-    grib_loader = rules.Loader(grib_generator, _load_rules,
+    grib_loader = rules.Loader(grib_generator, {}, _load_rules,
                                _cross_reference_rules, 'GRIB_LOAD')
     return rules.load_cubes(filenames, callback, grib_loader)
 

@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -87,8 +87,8 @@ All the load functions share very similar arguments:
             def callback(cube, field, filename):
                 # Extract ID from filenames given as: <prefix>__<exp_id>
                 experiment_id = filename.split('__')[1]
-                experiment_coord = iris.coords.AuxCoord(experiment_id,
-                                                        long_name='experiment_id')
+                experiment_coord = iris.coords.AuxCoord(
+                    experiment_id, long_name='experiment_id')
                 cube.add_aux_coord(experiment_coord)
 
 Format-specific translation behaviour can be modified by using:
@@ -110,11 +110,11 @@ import iris.io
 
 
 # Iris revision.
-__version__ = '1.4.0-dev'
+__version__ = '1.5.0-dev'
 
 # Restrict the names imported when using "from iris import *"
-__all__ = ['load', 'load_cube', 'load_cubes', 'load_raw', 'load_strict', 'save',
-           'Constraint', 'AttributeConstraint', 'sample_data_path',
+__all__ = ['load', 'load_cube', 'load_cubes', 'load_raw', 'load_strict',
+           'save', 'Constraint', 'AttributeConstraint', 'sample_data_path',
            'site_configuration']
 
 
@@ -142,18 +142,21 @@ else:
 def _generate_cubes(uris, callback):
     """Returns a generator of cubes given the URIs and a callback."""
     if isinstance(uris, basestring):
-        uris = [uris] 
-    
+        uris = [uris]
+
     # Group collections of uris by their iris handler
     # Create list of tuples relating schemes to part names
     uri_tuples = sorted(iris.io.decode_uri(uri) for uri in uris)
-    
+
     for scheme, groups in (itertools.groupby(uri_tuples, key=lambda x: x[0])):
-        part_names = [x[1] for x in groups]
-    
-        # Call each scheme handler with the approriate uris
+        # Call each scheme handler with the appropriate URIs
         if scheme == 'file':
+            part_names = [x[1] for x in groups]
             for cube in iris.io.load_files(part_names, callback):
+                yield cube
+        elif scheme in ['http', 'https']:
+            urls = [':'.join(x) for x in groups]
+            for cube in iris.io.load_http(urls, callback):
                 yield cube
         else:
             raise ValueError('Iris cannot handle the URI scheme: %s' % scheme)
@@ -164,8 +167,8 @@ def _load_collection(uris, constraints=None, callback=None):
         cubes = _generate_cubes(uris, callback)
         result = iris.cube._CubeFilterCollection.from_cubes(cubes, constraints)
     except EOFError as e:
-        raise iris.exceptions.TranslationError("The file appears empty or "
-                                               "incomplete: {!r}".format(e.message))
+        raise iris.exceptions.TranslationError(
+            "The file appears empty or incomplete: {!r}".format(e.message))
     return result
 
 
@@ -179,7 +182,7 @@ def load(uris, constraints=None, callback=None):
     Args:
 
     * uris:
-        One or more filenames.
+        One or more filenames/URIs.
 
     Kwargs:
 
@@ -191,7 +194,7 @@ def load(uris, constraints=None, callback=None):
     Returns:
         An :class:`iris.cube.CubeList`.
 
-    """    
+    """
     return _load_collection(uris, constraints, callback).merged().cubes()
 
 
@@ -205,7 +208,7 @@ def load_cube(uris, constraint=None, callback=None):
     Args:
 
     * uris:
-        One or more filenames.
+        One or more filenames/URIs.
 
     Kwargs:
 
@@ -240,7 +243,7 @@ def load_cubes(uris, constraints=None, callback=None):
     Args:
 
     * uris:
-        One or more filenames.
+        One or more filenames/URIs.
 
     Kwargs:
 
@@ -283,7 +286,7 @@ def load_raw(uris, constraints=None, callback=None):
     Args:
 
     * uris:
-        One or more filenames.
+        One or more filenames/URIs.
 
     Kwargs:
 
@@ -310,7 +313,7 @@ def load_strict(uris, constraints=None, callback=None):
     Args:
 
     * uris:
-        One or more filenames.
+        One or more filenames/URIs.
 
     Kwargs:
 

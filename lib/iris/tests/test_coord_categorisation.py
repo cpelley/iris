@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -21,15 +21,43 @@ Test the coordinate categorisation functions.
 # import iris tests first so that some things can be initialised before importing anything else
 import iris.tests as tests
 
+import warnings
+
 import numpy as np
 
 import iris
 import iris.coord_categorisation as ccat
 
 
-class TestCategorisations(tests.IrisTest):
+OK_DEFAULTS = (
+    ccat.add_year,
+    ccat.add_month,
+    ccat.add_weekday,
+    ccat.add_season,
+)
 
-    def test_basic(self):
+
+DEPRECATED_DEFAULTS = (
+    ccat.add_month_number,
+    ccat.add_month_fullname,
+    ccat.add_day_of_month,
+    ccat.add_day_of_year,
+    ccat.add_weekday_number,
+    ccat.add_weekday_fullname,
+    ccat.add_season_number,
+    ccat.add_season_year,
+)
+
+
+DEPRECATED = (
+    ccat.add_month_shortname,
+    ccat.add_weekday_shortname,
+    ccat.add_season_month_initials,
+)
+
+
+class TestCategorisations(tests.IrisTest):
+    def setUp(self):
         # make a series of 'day numbers' for the time, that slide across month
         # boundaries
         day_numbers = np.arange(0, 600, 27, dtype=np.int32)
@@ -46,26 +74,102 @@ class TestCategorisations(tests.IrisTest):
             units=iris.unit.Unit('days since epoch', 'gregorian'))
         cube.add_dim_coord(time_coord, 0)
 
-        # add test coordinates for examples wanted
-        ccat.add_year(cube, time_coord)
-        ccat.add_day_of_month(cube, 'time')    # NB test passing coord-name
-                                               # instead of coord itself
-        ccat.add_day_of_year(cube, 'time', name='day_of_year')
+        self.cube = cube
+        self.time_coord = time_coord
 
-        ccat.add_month(cube, time_coord)
-        ccat.add_month_shortname(cube, time_coord, name='month_short')
-        ccat.add_month_fullname(cube, time_coord, name='month_full')
-        ccat.add_month_number(cube, time_coord, name='month_number')
+    def test_bad_coord(self):
+        for func in OK_DEFAULTS + DEPRECATED_DEFAULTS + DEPRECATED:
+            with self.assertRaises(iris.exceptions.CoordinateNotFoundError):
+                with warnings.catch_warnings(record=True):
+                    func(self.cube, 'DOES NOT EXIST', 'my_category')
 
-        ccat.add_weekday(cube, time_coord)
-        ccat.add_weekday_number(cube, time_coord, name='weekday_number')
-        ccat.add_weekday_shortname(cube, time_coord, name='weekday_short')
-        ccat.add_weekday_fullname(cube, time_coord, name='weekday_full')
+    def test_deprecateds(self):
+        no_warning = 'Missing deprecation warning for {0!r}'
+        no_result = 'Missing/incorrectly named result for {0!r}'
 
-        ccat.add_season(cube, time_coord)
-        ccat.add_season_number(cube, time_coord, name='season_number')
-        ccat.add_season_month_initials(cube, time_coord, name='season_months')
-        ccat.add_season_year(cube, time_coord, name='year_ofseason')
+        def check_deprecated(result_name, func, args=()):
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter('always')
+                cube = self.cube.copy()
+                func(cube, 'time', *args)
+                self.assertEqual(len(w), 1, no_warning.format(func.func_name))
+                result_coords = cube.coords(result_name)
+                self.assertEqual(len(result_coords), 1,
+                                 no_result.format(func.func_name))
+
+        for func in DEPRECATED_DEFAULTS + DEPRECATED:
+            if func.func_name == 'add_season_year':
+                result_name = 'year'
+            else:
+                result_name = func.func_name.split('_')[1]
+            check_deprecated(result_name, func)
+
+        seasons = ('jfm', 'amj', 'jas', 'ond')
+        check_deprecated('season', ccat.add_custom_season_number,
+                         (seasons,))
+        check_deprecated('year', ccat.add_custom_season_year,
+                         (seasons,))
+        check_deprecated('season', ccat.add_custom_season_membership,
+                         ('mam',))
+        check_deprecated('season', ccat.add_custom_season, (seasons,))
+
+        unexpected = 'Unexpected deprecation warning for {0!r}'
+        for func in OK_DEFAULTS:
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter('always')
+                cube = self.cube.copy()
+                func(cube, 'time')
+                self.assertEqual(len(w), 0, unexpected.format(func.func_name))
+                result_name = func.func_name.split('_')[1]
+                result_coords = cube.coords(result_name)
+                self.assertEqual(len(result_coords), 1,
+                                 no_result.format(func.func_name))
+
+    def test_explicit_result_names(self):
+        result_name = 'my_category'
+        fmt = 'Missing/incorrectly named result for {0!r}'
+        for func in OK_DEFAULTS + DEPRECATED_DEFAULTS + DEPRECATED:
+            # Specify source coordinate by name
+            cube = self.cube.copy()
+            with warnings.catch_warnings(record=True):
+                func(cube, 'time', result_name)
+            result_coords = cube.coords(result_name)
+            self.assertEqual(len(result_coords), 1, fmt.format(func.func_name))
+            # Specify source coordinate by coordinate reference
+            cube = self.cube.copy()
+            time = cube.coord('time')
+            with warnings.catch_warnings(record=True):
+                func(cube, time, result_name)
+            result_coords = cube.coords(result_name)
+            self.assertEqual(len(result_coords), 1, fmt.format(func.func_name))
+
+    def test_basic(self):
+        cube = self.cube
+        time_coord = self.time_coord
+
+        ccat.add_year(cube, time_coord, 'my_year')
+        ccat.add_day_of_month(cube, time_coord, 'my_day_of_month')
+        ccat.add_day_of_year(cube, time_coord, 'my_day_of_year')
+
+        ccat.add_month(cube, time_coord, 'my_month')
+        with warnings.catch_warnings(record=True):
+            ccat.add_month_shortname(cube, time_coord, 'my_month_shortname')
+        ccat.add_month_fullname(cube, time_coord, 'my_month_fullname')
+        ccat.add_month_number(cube, time_coord, 'my_month_number')
+
+        ccat.add_weekday(cube, time_coord, 'my_weekday')
+        ccat.add_weekday_number(cube, time_coord, 'my_weekday_number')
+        with warnings.catch_warnings(record=True):
+            ccat.add_weekday_shortname(cube, time_coord,
+                                       'my_weekday_shortname')
+        ccat.add_weekday_fullname(cube, time_coord, 'my_weekday_fullname')
+
+        ccat.add_season(cube, time_coord, 'my_season')
+        ccat.add_season_number(cube, time_coord, 'my_season_number')
+        with warnings.catch_warnings(record=True):
+            ccat.add_season_month_initials(cube, time_coord,
+                                           'my_season_month_initials')
+        ccat.add_season_year(cube, time_coord, 'my_season_year')
 
         # also test 'generic' categorisation interface
         def _month_in_quarter(coord, pt_value):
@@ -73,91 +177,73 @@ class TestCategorisations(tests.IrisTest):
             return (date.month - 1) % 3
 
         ccat.add_categorised_coord(cube,
-                                   'month_in_quarter',
+                                   'my_month_in_quarter',
                                    time_coord,
                                    _month_in_quarter)
 
-        for coord_name in ['month_number',
-                           'month_in_quarter',
-                           'weekday_number',
-                           'season_number',
-                           'year_ofseason',
-                           'year',
-                           'day',
-                           'day_of_year']:
-            cube.coord(coord_name).points = \
-                cube.coord(coord_name).points.astype(np.int64)
+        # To ensure consistent results between 32-bit and 64-bit
+        # platforms, ensure all the numeric categorisation coordinates
+        # are always stored as int64.
+        for coord in cube.coords():
+            if coord.long_name is not None and coord.points.dtype.kind == 'i':
+                coord.points = coord.points.astype(np.int64)
 
         # check values
         self.assertCML(cube, ('categorisation', 'quickcheck.cml'))
 
-
-class TestCustomSeasonCategorisations(tests.IrisTest):
-
-    def setUp(self):
-        day_numbers = np.arange(0, 3 * 365 + 1, 1, dtype=np.int32)
-        cube = iris.cube.Cube(day_numbers, long_name='test cube', units='1')
-        time_coord = iris.coords.DimCoord(
-            day_numbers,
-            standard_name='time',
-            units=iris.unit.Unit('days since 2000-01-01 00:00:0.0',
-                                 'gregorian'))
-        cube.add_dim_coord(time_coord, 0)
-        self.cube = cube
-
-    def test_add_custom_season(self):
-        # custom seasons match standard seasons?
-        seasons = ('djf', 'mam', 'jja', 'son')
-        ccat.add_season(self.cube, 'time', name='season_std')
-        ccat.add_custom_season(self.cube, 'time', seasons,
-                               name='season_custom')
-        coord_std = self.cube.coord('season_std')
-        coord_custom = self.cube.coord('season_custom')
-        self.assertArrayEqual(coord_custom.points, coord_std.points)
-
-    def test_add_custom_season_year(self):
-        # custom season years match standard season years?
-        seasons = ('djf', 'mam', 'jja', 'son')
-        ccat.add_season_year(self.cube, 'time', name='year_std')
-        ccat.add_custom_season_year(self.cube, 'time', seasons,
-                                    name='year_custom')
-        coord_std = self.cube.coord('year_std')
-        coord_custom = self.cube.coord('year_custom')
-        self.assertArrayEqual(coord_custom.points, coord_std.points)
-
-    def test_add_custom_season_number(self):
-        # custom season years match standard season years?
-        seasons = ('djf', 'mam', 'jja', 'son')
-        ccat.add_season_number(self.cube, 'time', name='season_std')
-        ccat.add_custom_season_number(self.cube, 'time', seasons,
-                                      name='season_custom')
-        coord_std = self.cube.coord('season_std')
-        coord_custom = self.cube.coord('season_custom')
-        self.assertArrayEqual(coord_custom.points, coord_std.points)
-
-    def test_add_custom_season_membership(self):
+    def test_add_season_nonstandard(self):
+        # season categorisations work for non-standard seasons?
+        cube = self.cube
+        time_coord = self.time_coord
+        seasons = ['djfm', 'amjj', 'ason']
+        ccat.add_season(cube, time_coord, name='seasons', seasons=seasons)
+        ccat.add_season_number(cube, time_coord, name='season_numbers',
+                               seasons=seasons)
+        ccat.add_season_year(cube, time_coord, name='season_years',
+                             seasons=seasons)
+        self.assertCML(cube, ('categorisation', 'customcheck.cml'))
+        
+    def test_add_season_membership(self):
         # season membership identifies correct seasons?
         season = 'djf'
-        ccat.add_custom_season_membership(self.cube, 'time', season,
-                                          name='in_season')
+        ccat.add_season_membership(self.cube, 'time', season,
+                                   name='in_season')
         ccat.add_season(self.cube, 'time')
-        coord_std = self.cube.coord('season')
-        coord_custom = self.cube.coord('in_season')
-        std_locations = np.where(coord_std.points == season)[0]
-        custom_locations = np.where(coord_custom.points)[0]
-        self.assertArrayEqual(custom_locations, std_locations)
+        coord_season = self.cube.coord('season')
+        coord_membership = self.cube.coord('in_season')
+        season_locations = np.where(coord_season.points == season)[0]
+        membership_locations = np.where(coord_membership.points)[0]
+        self.assertArrayEqual(membership_locations, season_locations)
 
-    def test_add_custom_season_repeated_months(self):
+    def test_add_season_invalid_spec(self):
+        # custom seasons with an invalid season raises an error?
+        seasons = ('djf', 'maj', 'jja', 'son')   # MAJ not a season!
+        for func in (ccat.add_season, ccat.add_season_year,
+                     ccat.add_season_number):
+            with self.assertRaises(ValueError):
+                func(self.cube, 'time', name='my_category', seasons=seasons)
+        
+    def test_add_season_repeated_months(self):
         # custom seasons with repeated months raises an error?
         seasons = ('djfm', 'mam', 'jja', 'son')
-        with self.assertRaises(ValueError):
-            ccat.add_custom_season(self.cube, 'time', seasons, name='season')
+        for func in (ccat.add_season, ccat.add_season_year,
+                     ccat.add_season_number):
+            with self.assertRaises(ValueError):
+                func(self.cube, 'time', name='my_category', seasons=seasons)
 
-    def test_add_custom_season_missing_months(self):
+    def test_add_season_missing_months(self):
         # custom seasons with missing months raises an error?
         seasons = ('djfm', 'amjj')
+        for func in (ccat.add_season, ccat.add_season_year,
+                     ccat.add_season_number):
+            with self.assertRaises(ValueError):
+                func(self.cube, 'time', name='my_category', seasons=seasons)
+
+    def test_add_season_membership_invalid_spec(self):
+        season = 'maj'   # not a season!
         with self.assertRaises(ValueError):
-            ccat.add_custom_season(self.cube, 'time', seasons, name='season')
+            ccat.add_season_membership(self.cube, 'time', season,
+                                       name='maj_season')
 
 
 if __name__ == '__main__':

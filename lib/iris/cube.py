@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2012, Met Office
+# (C) British Crown Copyright 2010 - 2013, Met Office
 #
 # This file is part of Iris.
 #
@@ -355,7 +355,7 @@ class Cube(CFVariableMixin):
 
         >>> cube = iris.load_cube(iris.sample_data_path('air_temp.pp'))
         >>> print cube
-        air_temperature / K                 (latitude: 73; longitude: 96)
+        air_temperature / (K)               (latitude: 73; longitude: 96)
              Dimension coordinates:
                   latitude                           x              -
                   longitude                          -              x
@@ -1048,23 +1048,33 @@ class Cube(CFVariableMixin):
 
         return coords[0]
 
-    def coord_system(self, spec):
-        """Return the CoordSystem of the given type - or None.
+    def coord_system(self, spec=None):
+        """
+        Find the coordinate system of the given type.
 
-        Args:
+        If no target coordinate system is provided then find
+        any available coordinate system.
 
-        * spec
-            The the name or type of a CoordSystem subclass. E.g. ::
+        Kwargs:
+
+        * spec:
+            The the name or type of a coordinate system subclass.
+            E.g. ::
 
                 cube.coord_system("GeogCS")
                 cube.coord_system(iris.coord_systems.GeogCS)
 
-        If spec is provided as a type it can be a superclass of any
-        CoordSystems found.
+            If spec is provided as a type it can be a superclass of
+            any coordinate system found.
+
+            If spec is None, then find any available coordinate
+            systems within the :class:`iris.cube.Cube`.
+
+        Returns:
+            The :class:`iris.coord_systems.CoordSystem` or None.
 
         """
-        # Was a string or a type provided?
-        if isinstance(spec, basestring):
+        if isinstance(spec, basestring) or spec is None:
             spec_name = spec
         else:
             msg = "type %s is not a subclass of CoordSystem" % spec
@@ -1077,7 +1087,15 @@ class Cube(CFVariableMixin):
             if coord.coord_system:
                 coord_systems.add(coord.coord_system, replace=True)
 
-        return coord_systems.get(spec_name)
+        result = None
+        if spec_name is None:
+            for key in sorted(coord_systems.keys()):
+                result = coord_systems[key]
+                break
+        else:
+            result = coord_systems.get(spec_name)
+
+        return result
 
     @property
     def cell_methods(self):
@@ -1286,7 +1304,7 @@ class Cube(CFVariableMixin):
                  ': %d' % dim_shape for dim, dim_shape in
                  enumerate(self.shape)])
 
-        nameunit = '{name} / {units}'.format(name=self.name(),
+        nameunit = '{name} / ({units})'.format(name=self.name(),
                                              units=self.units)
         cube_header = '{nameunit!s:{length}} ({dimension})'.format(
             length=name_padding,
@@ -1774,13 +1792,15 @@ class Cube(CFVariableMixin):
 
     def slices(self, coords_to_slice, ordered=True):
         """
-        Return an iterator of all cubes given the coordinates desired.
+        Return an iterator of all subcubes given the coordinates desired
+        to be present in each subcube.
 
         Parameters:
 
         * coords_to_slice (string, coord or a list of strings/coords) :
-            Coordinate names/coordinates to iterate over. They must all be
-            orthogonal (i.e. point to different dimensions).
+            Coordinate names/coordinates that will be returned in the subcubes
+            (i.e. the coordinate names/coordinates that are not iterated over).
+            They must all be orthogonal (i.e. point to different dimensions).
 
         Kwargs:
 
@@ -1789,9 +1809,9 @@ class Cube(CFVariableMixin):
             cube slices
 
         Returns:
-            An iterator of sub cubes.
+            An iterator of subcubes.
 
-        For example, to get all 2d longitude/latitude cubes from a
+        For example, to get all 2d longitude/latitude subcubes from a
         multi-dimensional cube::
 
             for sub_cube in cube.slices(['longitude', 'latitude']):
@@ -2184,7 +2204,7 @@ class Cube(CFVariableMixin):
             >>> cube = iris.load_cube(iris.sample_data_path('ostia_monthly.nc'))
             >>> new_cube = cube.collapsed('longitude', iris.analysis.MEAN)
             >>> print new_cube
-            surface_temperature / K             (time: 54; latitude: 18)
+            surface_temperature / (K)           (time: 54; latitude: 18)
                  Dimension coordinates:
                       time                           x             -
                       latitude                       -             x
@@ -2319,7 +2339,7 @@ class Cube(CFVariableMixin):
             >>> cat.add_year(cube, 'time', name='year')
             >>> new_cube = cube.aggregated_by('year', iris.analysis.MEAN)
             >>> print new_cube
-            surface_temperature / K             (*ANONYMOUS*: 5; latitude: 18; longitude: 432)
+            surface_temperature / (K)           (*ANONYMOUS*: 5; latitude: 18; longitude: 432)
                  Dimension coordinates:
                       latitude                              -            x              -
                       longitude                             -            -              x
@@ -2401,10 +2421,14 @@ class Cube(CFVariableMixin):
             result = aggregator.aggregate(groupby_sub_cube.data,
                                           axis=dimension_to_groupby,
                                           **kwargs)
+
             # Determine aggregation result data type for the aggregate-by cube
             # data on first pass.
             if i == 0:
-                aggregateby_data = np.zeros(data_shape, dtype=result.dtype)
+                if isinstance(self.data, ma.MaskedArray):
+                    aggregateby_data = ma.zeros(data_shape, dtype=result.dtype)
+                else:
+                    aggregateby_data = np.zeros(data_shape, dtype=result.dtype)
 
             aggregateby_data[tuple(cube_slice)] = result
 
@@ -2451,7 +2475,7 @@ class Cube(CFVariableMixin):
             >>> fname = iris.sample_data_path('GloSea4', 'ensemble_010.pp')
             >>> air_press = iris.load_cube(fname, 'surface_temperature')
             >>> print air_press
-            surface_temperature / K             (time: 6; latitude: 145; longitude: 192)
+            surface_temperature / (K)           (time: 6; latitude: 145; longitude: 192)
                  Dimension coordinates:
                       time                           x            -               -
                       latitude                       -            x               -
@@ -2469,7 +2493,7 @@ class Cube(CFVariableMixin):
 
 
             >>> print air_press.rolling_window('time', iris.analysis.MEAN, 3)
-            surface_temperature / K             (time: 4; latitude: 145; longitude: 192)
+            surface_temperature / (K)           (time: 4; latitude: 145; longitude: 192)
                  Dimension coordinates:
                       time                           x            -               -
                       latitude                       -            x               -
@@ -2600,7 +2624,7 @@ class ClassDict(object, UserDict.DictMixin):
         if not isinstance(object_, self._superclass):
             msg = "Only subclasses of {!r} are allowed as values.".format(
                 self._superclass.__name__)
-            raise TypeError()
+            raise TypeError(msg)
         # Find all the superclasses of the given object, starting with the
         # object's class.
         superclasses = type.mro(type(object_))
