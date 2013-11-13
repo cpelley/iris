@@ -129,7 +129,6 @@ class StandardReportWithExclusions(pep8.StandardReport):
 
     if os.path.exists(DOCS_DIR):
         expected_bad_docs_files = [
-            '*/iris/example_code/graphics/COP_1d_plot.py',
             '*/iris/example_code/graphics/COP_maps.py',
             '*/iris/example_code/graphics/SOI_filtering.py',
             '*/iris/example_code/graphics/cross_section.py',
@@ -137,7 +136,6 @@ class StandardReportWithExclusions(pep8.StandardReport):
             '*/iris/example_code/graphics/global_map.py',
             '*/iris/example_code/graphics/hovmoller.py',
             '*/iris/example_code/graphics/lagged_ensemble.py',
-            '*/iris/example_tests/test_COP_1d_plot.py',
             '*/iris/example_tests/test_COP_maps.py',
             '*/iris/example_tests/test_SOI_filtering.py',
             '*/iris/example_tests/test_TEC.py',
