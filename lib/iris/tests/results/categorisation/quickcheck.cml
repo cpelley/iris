@@ -31,17 +31,7 @@
 		2, 3, 4, 5, 5, 6, 7, 8]" shape="(23,)" units="Unit('1')" value_type="int64"/>
       </coord>
       <coord datadims="[0]">
-        <auxCoord id="4b5fe284" long_name="my_month_shortname" points="[Jan, Jan, Feb, Mar, Apr, May, Jun, Jul, Aug,
-		Sep, Sep, Oct, Nov, Dec, Jan, Feb, Mar, Apr,
-		May, May, Jun, Jul, Aug]" shape="(23,)" units="Unit('no_unit')" value_type="string"/>
-      </coord>
-      <coord datadims="[0]">
         <auxCoord id="2098fef5" long_name="my_season" points="[djf, djf, djf, mam, mam, mam, jja, jja, jja,
-		son, son, son, son, djf, djf, djf, mam, mam,
-		mam, mam, jja, jja, jja]" shape="(23,)" units="Unit('no_unit')" value_type="string"/>
-      </coord>
-      <coord datadims="[0]">
-        <auxCoord id="82c31af" long_name="my_season_month_initials" points="[djf, djf, djf, mam, mam, mam, jja, jja, jja,
 		son, son, son, son, djf, djf, djf, mam, mam,
 		mam, mam, jja, jja, jja]" shape="(23,)" units="Unit('no_unit')" value_type="string"/>
       </coord>
@@ -71,11 +61,6 @@
 		1, 0, 6, 5, 4, 3, 2]" shape="(23,)" units="Unit('1')" value_type="int64"/>
       </coord>
       <coord datadims="[0]">
-        <auxCoord id="6de77ce8" long_name="my_weekday_shortname" points="[Thu, Wed, Tue, Mon, Sun, Sat, Fri, Thu, Wed,
-		Tue, Mon, Sun, Sat, Fri, Thu, Wed, Tue, Mon,
-		Sun, Sat, Fri, Thu, Wed]" shape="(23,)" units="Unit('no_unit')" value_type="string"/>
-      </coord>
-      <coord datadims="[0]">
         <auxCoord id="2a04e1ea" long_name="my_year" points="[1970, 1970, 1970, 1970, 1970, 1970, 1970, 1970,
 		1970, 1970, 1970, 1970, 1970, 1970, 1971, 1971,
 		1971, 1971, 1971, 1971, 1971, 1971, 1971]" shape="(23,)" units="Unit('1')" value_type="int64"/>
@@ -87,6 +72,6 @@
       </coord>
     </coords>
     <cellMethods/>
-    <data byteorder="little" checksum="-0x2735ea03" dtype="int32" order="C" shape="(23,)"/>
+    <data byteorder="little" checksum="-0x2735ea03" dtype="int32" shape="(23,)"/>
   </cube>
 </cubes>

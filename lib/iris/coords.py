@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2013, Met Office
+# (C) British Crown Copyright 2010 - 2014, Met Office
 #
 # This file is part of Iris.
 #
@@ -36,6 +36,7 @@ import iris.unit
 import iris.util
 
 from iris._cube_coord_common import CFVariableMixin
+from iris.util import is_regular
 
 
 class CoordDefn(collections.namedtuple('CoordDefn',
@@ -153,7 +154,8 @@ class Cell(collections.namedtuple('Cell', ['point', 'bound'])):
         compared.
 
         """
-        if isinstance(other, (int, float)):
+        if isinstance(other, (int, float, np.number)) or \
+                hasattr(other, 'timetuple'):
             if self.bound is not None:
                 return self.contains_point(other)
             else:
@@ -182,8 +184,10 @@ class Cell(collections.namedtuple('Cell', ['point', 'bound'])):
         Non-Cell vs Cell comparison is used to define Constraint matching.
 
         """
-        if not isinstance(other, (int, float, np.number, Cell)):
-            raise ValueError("Unexpected type of other")
+        if not (isinstance(other, (int, float, np.number, Cell)) or
+                hasattr(other, 'timetuple')):
+            raise ValueError("Unexpected type of other "
+                             "{}.".format(type(other)))
         if operator_method not in (operator.gt, operator.lt,
                                    operator.ge, operator.le):
             raise ValueError("Unexpected operator_method")
@@ -322,8 +326,12 @@ class Coord(CFVariableMixin):
             The :class:`~iris.unit.Unit` of the coordinate's values.
             Can be a string, which will be converted to a Unit object.
         * bounds
-            An array of values describing the bounds of each cell. The shape
-            of the array must be compatible with the points array.
+            An array of values describing the bounds of each cell. Given n
+            bounds for each cell, the shape of the bounds array should be
+            points.shape + (n,). For example, a 1d coordinate with 100 points
+            and two bounds per cell would have a bounds array of shape
+            (100, 2)
+
         * attributes
             A dictionary containing other cf and user-defined attributes.
         * coord_system
@@ -409,8 +417,10 @@ class Coord(CFVariableMixin):
                   being copied.
 
         * bounds: A bounds array for the new coordinate.
-                  This must be the compatible with the points array of the
-                  coordinate being created.
+                  Given n bounds for each cell, the shape of the bounds array
+                  should be points.shape + (n,). For example, a 1d coordinate
+                  with 100 points and two bounds per cell would have a bounds
+                  array of shape (100, 2).
 
         .. note:: If the points argument is specified and bounds are not, the
                   resulting coordinate will have no bounds.
@@ -457,9 +467,17 @@ class Coord(CFVariableMixin):
         return result
 
     def _str_dates(self, dates_as_numbers):
-        # Chop off the 'array(' prefix and the ', dtype=object)'
-        # suffix.
-        return repr(self.units.num2date(dates_as_numbers))[6:-15]
+        date_obj_array = self.units.num2date(dates_as_numbers)
+        kwargs = {'separator': ', ', 'prefix': '      '}
+        try:
+            # With NumPy 1.7 we need to ask for 'str' formatting.
+            result = np.core.arrayprint.array2string(
+                date_obj_array, formatter={'numpystr': str}, **kwargs)
+        except TypeError:
+            # But in 1.6 we don't need to ask, and the option doesn't
+            # even exist!
+            result = np.core.arrayprint.array2string(date_obj_array, **kwargs)
+        return result
 
     def __str__(self):
         if self.units.is_time_reference():
@@ -631,24 +649,6 @@ class Coord(CFVariableMixin):
                 self.bounds = self.units.convert(self.bounds, unit)
         self.units = unit
 
-    def unit_converted(self, new_unit):
-        """
-        Return a coordinate converted to a given unit.
-
-        .. deprecated:: 1.2
-            Make a copy of the coordinate using
-            :meth:`~iris.coords.Coord.copy()` and then use
-            :meth:`~iris.coords.Coord.convert_units()`.
-
-        """
-        msg = "The 'unit_converted' method is deprecated. Make a copy of "\
-              "the coordinate and use the in-place 'convert_units' "\
-              "method."
-        warnings.warn(msg, UserWarning, stacklevel=2)
-        new_coord = self.copy()
-        new_coord.convert_units(new_unit)
-        return new_coord
-
     def cells(self):
         """
         Returns an iterable of Cell instances for this Coord.
@@ -773,7 +773,7 @@ class Coord(CFVariableMixin):
                     ignore = (ignore,)
                 common_keys = common_keys.difference(ignore)
             for key in common_keys:
-                if self.attributes[key] != other.attributes[key]:
+                if np.any(self.attributes[key] != other.attributes[key]):
                     compatible = False
                     break
 
@@ -817,18 +817,17 @@ class Coord(CFVariableMixin):
         # a deferred load unnecessarily.
         return self._points.shape
 
-    def index(self, cell):
-        """
-        Return the index of a given Cell in this Coord.
-
-        """
-        raise IrisError('Coord.index() is no longer available.'
-                        ' Use Coord.nearest_neighbour_index() instead.')
-
     def cell(self, index):
         """
         Return the single :class:`Cell` instance which results from slicing the
         points/bounds with the given index.
+
+        .. note::
+
+            If `iris.FUTURE.cell_datetime_objects` is True, then this
+            method will return Cell objects whose `points` and `bounds`
+            attributes contain either datetime.datetime instances or
+            netcdftime.datetime instances (depending on the calendar).
 
         """
         index = iris.util._build_full_slice_given_keys(index, self.ndim)
@@ -842,6 +841,12 @@ class Coord(CFVariableMixin):
         if self.bounds is not None:
             bound = tuple(np.array(self.bounds[index], ndmin=1).flatten())
 
+        if iris.FUTURE.cell_datetime_objects:
+            if self.units.is_time_reference():
+                point = self.units.num2date(point)
+                if bound is not None:
+                    bound = self.units.num2date(bound)
+
         return Cell(point, bound)
 
     def collapsed(self, dims_to_collapse=None):
@@ -853,42 +858,55 @@ class Coord(CFVariableMixin):
 
         """
         if isinstance(dims_to_collapse, (int, np.integer)):
-            dims_to_collapse = set([dims_to_collapse])
+            dims_to_collapse = [dims_to_collapse]
 
-        if dims_to_collapse is None:
-            dims_to_collapse = set(range(self.ndim))
+        if dims_to_collapse is not None and \
+                set(range(self.ndim)) != set(dims_to_collapse):
+            raise ValueError('Cannot partially collapse a coordinate (%s).'
+                             % self.name())
+
+        if self.units in ['no_unit', 'unknown']:
+            # Collapse the coordinate by serializing the points and
+            # bounds as strings.
+            serialize = lambda x: '|'.join([str(i) for i in x.flatten()])
+            bounds = None
+            if self.bounds is not None:
+                shape = self.bounds.shape[1:]
+                bounds = []
+                for index in np.ndindex(shape):
+                    index_slice = (slice(None),) + tuple(index)
+                    bounds.append(serialize(self.bounds[index_slice]))
+                dtype = np.dtype('S{}'.format(max(map(len, bounds))))
+                bounds = np.array(bounds, dtype=dtype).reshape((1,) + shape)
+            points = serialize(self.points)
+            dtype = np.dtype('S{}'.format(len(points)))
+            # Create the new collapsed coordinate.
+            coord = self.copy(points=np.array(points, dtype=dtype),
+                              bounds=bounds)
         else:
-            if set(range(self.ndim)) != set(dims_to_collapse):
-                raise ValueError('Cannot partially collapse a coordinate (%s).'
-                                 % self.name())
+            # Collapse the coordinate by calculating the bounded extremes.
+            if self.ndim > 1:
+                msg = 'Collapsing a multi-dimensional coordinate. ' \
+                    'Metadata may not be fully descriptive for {!r}.'
+                warnings.warn(msg.format(self.name()))
+            elif not self.is_contiguous():
+                msg = 'Collapsing a non-contiguous coordinate. ' \
+                    'Metadata may not be fully descriptive for {!r}.'
+                warnings.warn(msg.format(self.name()))
 
-        # Warn about non-contiguity.
-        if self.ndim > 1:
-            warnings.warn('Collapsing a multi-dimensional coordinate. '
-                          'Metadata may not be fully descriptive for "%s".' %
-                          self.name())
-        elif not self.is_contiguous():
-            warnings.warn('Collapsing a non-contiguous coordinate. Metadata '
-                          'may not be fully descriptive for "%s".' %
-                          self.name())
+            # Create bounds for the new collapsed coordinate.
+            item = self.bounds if self.bounds is not None else self.points
+            lower, upper = np.min(item), np.max(item)
+            bounds_dtype = item.dtype
+            bounds = [lower, upper]
+            # Create points for the new collapsed coordinate.
+            points_dtype = self.points.dtype
+            points = [(lower + upper) * 0.5]
 
-        # Create bounds for the new collapsed coordinate.
-        if self.bounds is not None:
-            lower_bound, upper_bound = np.min(self.bounds), np.max(self.bounds)
-            bounds_dtype = self.bounds.dtype
-        else:
-            lower_bound, upper_bound = np.min(self.points), np.max(self.points)
-            bounds_dtype = self.points.dtype
-
-        points_dtype = self.points.dtype
-
-        # Create the new collapsed coordinate.
-        coord_collapsed = self.copy(points=np.array([(lower_bound +
-                                                      upper_bound) * 0.5],
-                                                    dtype=points_dtype),
-                                    bounds=np.array([lower_bound, upper_bound],
-                                                    dtype=bounds_dtype))
-        return coord_collapsed
+            # Create the new collapsed coordinate.
+            coord = self.copy(points=np.array(points, dtype=points_dtype),
+                              bounds=np.array(bounds, dtype=bounds_dtype))
+        return coord
 
     def _guess_bounds(self, bound_position=0.5):
         """
@@ -938,14 +956,32 @@ class Coord(CFVariableMixin):
 
     def guess_bounds(self, bound_position=0.5):
         """
-        Try to add bounds to this coordinate using the coordinate's points.
+        Add contiguous bounds to a coordinate, calculated from its points.
+
+        Puts a cell boundary at the specified fraction between each point and
+        the next, plus extrapolated lowermost and uppermost bound points, so
+        that each point lies within a cell.
+
+        With regularly spaced points, the resulting bounds will also be
+        regular, and all points lie at the same position within their cell.
+        With irregular points, the first and last cells are given the same
+        widths as the ones next to them.
 
         Kwargs:
 
         * bound_position - The desired position of the bounds relative to the
                            position of the points.
 
-        This method only works for coordinates with ``coord.ndim == 1``.
+        .. note::
+
+            An error is raised if the coordinate already has bounds, is not
+            one-dimensional, or is not monotonic.
+
+        .. note::
+
+            Unevenly spaced values, such from a wrapped longitude range, can
+            produce unexpected results :  In such cases you should assign
+            suitable values directly to the bounds property, instead.
 
         """
         self.bounds = self._guess_bounds(bound_position)
@@ -1069,30 +1105,6 @@ class Coord(CFVariableMixin):
                 result_index = (result_index - index_offset) % self.shape[0]
 
         return result_index
-
-    def sin(self):
-        """
-        Return a coordinate which represents sin(this coordinate).
-
-        .. deprecated:: 1.0
-            This method has been deprecated.
-
-        """
-        warnings.warn('Coord.sin() has been deprecated.')
-        import iris.analysis.calculus
-        return iris.analysis.calculus._coord_sin(self)
-
-    def cos(self):
-        """
-        Return a coordinate which represents cos(this coordinate).
-
-        .. deprecated:: 1.0
-            This method has been deprecated.
-
-        """
-        warnings.warn('Coord.cos() has been deprecated.')
-        import iris.analysis.calculus
-        return iris.analysis.calculus._coord_cos(self)
 
     def xml_element(self, doc):
         """Return a DOM element describing this Coord."""
@@ -1224,6 +1236,10 @@ class DimCoord(Coord):
         points = (zeroth+step) + step*np.arange(count, dtype=np.float32)
         points.flags.writeable = False
         coord._points = points
+        if not is_regular(coord) and count > 1:
+            points = (zeroth+step) + step*np.arange(count, dtype=np.float64)
+            points.flags.writeable = False
+            coord._points = points
 
         if with_bounds:
             delta = 0.5 * step
@@ -1331,8 +1347,9 @@ class DimCoord(Coord):
             # Ensure the bounds are a compatible shape.
             bounds = np.array(bounds, ndmin=2)
             if self.shape != bounds.shape[:-1]:
-                raise ValueError("Bounds shape must be compatible with points "
-                                 "shape.")
+                raise ValueError(
+                    "The shape of the bounds array should be "
+                    "points.shape + (n_bounds,)")
             # Checks for numeric and monotonic
             if not np.issubdtype(bounds.dtype, np.number):
                 raise ValueError('The bounds array must be numeric.')

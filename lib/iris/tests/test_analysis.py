@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2013, Met Office
+# (C) British Crown Copyright 2010 - 2014, Met Office
 #
 # This file is part of Iris.
 #
@@ -21,7 +21,6 @@ from __future__ import division
 import iris.tests as tests
 
 import itertools
-import zlib
 
 import cartopy.crs as ccrs
 import matplotlib
@@ -302,6 +301,54 @@ class TestMissingData(tests.IrisTest):
         np.testing.assert_array_equal(cube.data, np.array([6, 18, 17]))
 
 
+class TestAggregator_mdtol_keyword(tests.IrisTest):
+    def setUp(self):
+        data = ma.array([[1, 2], [4, 5]], dtype=np.float32,
+                        mask=[[False, True], [False, True]])
+        cube = iris.cube.Cube(data, long_name="test_data", units="1")
+        lat_coord = iris.coords.DimCoord(np.array([1, 2], dtype=np.float32),
+                                         long_name="lat", units="1")
+        lon_coord = iris.coords.DimCoord(np.array([3, 4], dtype=np.float32),
+                                         long_name="lon", units="1")
+        cube.add_dim_coord(lat_coord, 0)
+        cube.add_dim_coord(lon_coord, 1)
+        self.cube = cube
+
+    def test_single_coord_no_mdtol(self):
+        collapsed = self.cube.collapsed(
+            self.cube.coord('lat'), iris.analysis.MEAN)
+        t = ma.array([2.5, 5.], mask=[False, True])
+        self.assertMaskedArrayEqual(collapsed.data, t)
+
+    def test_single_coord_mdtol(self):
+        self.cube.data.mask = np.array([[False, True], [False, False]])
+        collapsed = self.cube.collapsed(
+            self.cube.coord('lat'), iris.analysis.MEAN, mdtol=0.5)
+        t = ma.array([2.5, 5], mask=[False, False])
+        self.assertMaskedArrayEqual(collapsed.data, t)
+
+    def test_single_coord_mdtol_alt(self):
+        self.cube.data.mask = np.array([[False, True], [False, False]])
+        collapsed = self.cube.collapsed(
+            self.cube.coord('lat'), iris.analysis.MEAN, mdtol=0.4)
+        t = ma.array([2.5, 5], mask=[False, True])
+        self.assertMaskedArrayEqual(collapsed.data, t)
+
+    def test_multi_coord_no_mdtol(self):
+        collapsed = self.cube.collapsed(
+            [self.cube.coord('lat'), self.cube.coord('lon')],
+            iris.analysis.MEAN)
+        t = np.array([2.5])
+        self.assertArrayEqual(collapsed.data, t)
+
+    def test_multi_coord_mdtol(self):
+        collapsed = self.cube.collapsed(
+            [self.cube.coord('lat'), self.cube.coord('lon')],
+            iris.analysis.MEAN, mdtol=0.4)
+        t = ma.array([2.5], mask=[True])
+        self.assertMaskedArrayEqual(collapsed.data, t)
+
+
 class TestAggregators(tests.IrisTest):
     def test_percentile_1d(self):
         cube = tests.stock.simple_1d()
@@ -477,10 +524,27 @@ class TestAggregators(tests.IrisTest):
         # verify 2d weighted sum is correct
         cube = tests.stock.simple_2d()
         weights = np.array([.3, .4, .3])
-        weights = iris.util.broadcast_weights(weights, cube.data, [0])
+        weights = iris.util.broadcast_to_shape(weights, cube.shape, [0])
         result = cube.collapsed('bar', iris.analysis.SUM, weights=weights)
         self.assertArrayAlmostEqual(result.data, np.array([4., 5., 6., 7.]))
         self.assertCML(result, ('analysis', 'sum_weighted_2d.cml'),
+                       checksum=False)
+
+    def test_weighted_rms(self):
+        cube = tests.stock.simple_2d()
+        # modify cube data so that the results are nice numbers
+        cube.data = np.array([[4, 7, 10, 8],
+                              [21, 30, 12, 24],
+                              [14, 16, 20, 8]],
+                             dtype=np.float64)
+        weights = np.array([[1, 4, 3, 2],
+                            [6, 4.5, 1.5, 3],
+                            [2, 1, 1.5, 0.5]],
+                           dtype=np.float64)
+        expected_result = np.array([8.0, 24.0, 16.0])
+        result = cube.collapsed('foo', iris.analysis.RMS, weights=weights)
+        self.assertArrayAlmostEqual(result.data, expected_result)
+        self.assertCML(result, ('analysis', 'rms_weighted_2d.cml'),
                        checksum=False)
 
 
@@ -493,10 +557,10 @@ class TestRotatedPole(tests.IrisTest):
             rlons, rlats, rcs.grid_north_pole_longitude,
             rcs.grid_north_pole_latitude)
         plt.scatter(x, y)
-        self.check_graphic(tol=0.002)
+        self.check_graphic()
 
         plt.scatter(rlons, rlats)
-        self.check_graphic(tol=0.002)
+        self.check_graphic()
 
     def test_all(self):
         path = tests.get_data_path(('PP', 'ukVorog', 'ukv_orog_refonly.pp'))
@@ -574,22 +638,37 @@ class TestRotatedPole(tests.IrisTest):
         self.assertArrayAlmostEqual(resx, solx)
         self.assertArrayAlmostEqual(resy, soly)
 
+
 @iris.tests.skip_data
 class TestAreaWeights(tests.IrisTest):
-    def setUp(self):
-        self.cube = iris.tests.stock.simple_pp()
-        self.assertCML(self.cube, ('analysis', 'areaweights_original.cml'))
-
     def test_area_weights(self):
-        self.cube.coord('latitude').guess_bounds()
-        self.cube.coord('longitude').guess_bounds()
-        area_weights = iris.analysis.cartography.area_weights(self.cube)
-        self.assertEquals(zlib.crc32(area_weights), 253962218)
+        small_cube = iris.tests.stock.simple_pp()
+        # Get offset, subsampled region: small enough to test against literals
+        small_cube = small_cube[10:, 35:]
+        small_cube = small_cube[::8, ::8]
+        small_cube = small_cube[:5, :4]
+        # pre-check non-data properties
+        self.assertCML(small_cube, ('analysis', 'areaweights_original.cml'),
+                       checksum=False)
+
+        # check area-weights values
+        small_cube.coord('latitude').guess_bounds()
+        small_cube.coord('longitude').guess_bounds()
+        area_weights = iris.analysis.cartography.area_weights(small_cube)
+        expected_results = np.array(
+            [[3.11955916e+12, 3.11956058e+12, 3.11955916e+12, 3.11956058e+12],
+             [5.21950793e+12, 5.21951031e+12, 5.21950793e+12, 5.21951031e+12],
+             [6.68991432e+12, 6.68991737e+12, 6.68991432e+12, 6.68991737e+12],
+             [7.35341320e+12, 7.35341655e+12, 7.35341320e+12, 7.35341655e+12],
+             [7.12998265e+12, 7.12998589e+12, 7.12998265e+12, 7.12998589e+12]],
+            dtype=np.float64)
+        self.assertArrayAllClose(area_weights, expected_results, rtol=1e-8)
 
         # Check there was no residual change
-        self.cube.coord('latitude').bounds = None
-        self.cube.coord('longitude').bounds = None
-        self.assertCML(self.cube, ('analysis', 'areaweights_original.cml'))
+        small_cube.coord('latitude').bounds = None
+        small_cube.coord('longitude').bounds = None
+        self.assertCML(small_cube, ('analysis', 'areaweights_original.cml'),
+                       checksum=False)
 
     def test_quadrant_area(self):
 
@@ -672,12 +751,49 @@ class TestAreaWeightGeneration(tests.IrisTest):
         weights = iris.analysis.cartography.area_weights(cube)
         self.assertEqual(weights.shape, cube.shape)
 
+    def test_area_weights_singleton_latitude(self):
+        # singleton (1-point) latitude dimension
+        cube = self.cube[:, :, 0:1, :]
+        weights = iris.analysis.cartography.area_weights(cube)
+        self.assertEqual(weights.shape, cube.shape)
+
+    def test_area_weights_singleton_longitude(self):
+        # singleton (1-point) longitude dimension
+        cube = self.cube[:, :, :, 0:1]
+        weights = iris.analysis.cartography.area_weights(cube)
+        self.assertEqual(weights.shape, cube.shape)
+
+    def test_area_weights_singletons(self):
+        # singleton (1-point) latitude and longitude dimensions
+        cube = self.cube[:, :, 0:1, 0:1]
+        weights = iris.analysis.cartography.area_weights(cube)
+        self.assertEqual(weights.shape, cube.shape)
+
     def test_area_weights_normalized(self):
         # normalized area weights must sum to one over lat/lon dimensions.
         weights = iris.analysis.cartography.area_weights(self.cube,
                                                          normalize=True)
         sumweights = weights.sum(axis=3).sum(axis=2)  # sum over lon and lat
         self.assertArrayAlmostEqual(sumweights, 1)
+
+    def test_area_weights_non_contiguous(self):
+        # Slice the cube so that we have non-contiguous longitude
+        # bounds.
+        ind = (0, 1, 2, -3, -2, -1)
+        cube = self.cube[..., ind]
+        weights = iris.analysis.cartography.area_weights(cube)
+        expected = iris.analysis.cartography.area_weights(self.cube)[..., ind]
+        self.assertArrayEqual(weights, expected)
+
+    def test_area_weights_no_lon_bounds(self):
+        self.cube.coord('grid_longitude').bounds = None
+        with self.assertRaises(ValueError):
+            iris.analysis.cartography.area_weights(self.cube)
+
+    def test_area_weights_no_lat_bounds(self):
+        self.cube.coord('grid_latitude').bounds = None
+        with self.assertRaises(ValueError):
+            iris.analysis.cartography.area_weights(self.cube)
 
 
 @iris.tests.skip_data
@@ -721,6 +837,14 @@ class TestLatitudeWeightGeneration(tests.IrisTest):
         self.assertAlmostEqual(weights[0, 0],
                                np.cos(np.deg2rad(self.lat1d[0])))
 
+    def test_cosine_latitude_weights_1d_singleton(self):
+        # singleton (1-point) 1d latitude coordinate (time, lat, lon)
+        cube = self.cube_dim_lat[:, 0:1, :]
+        weights = iris.analysis.cartography.cosine_latitude_weights(cube)
+        self.assertEqual(weights.shape, cube.shape)
+        self.assertAlmostEqual(weights[0, 0, 0],
+                               np.cos(np.deg2rad(self.lat1d[0])))
+
     def test_cosine_latitude_weights_1d(self):
         # 1d latitude coordinate (time, lat, lon)
         weights = iris.analysis.cartography.cosine_latitude_weights(
@@ -748,6 +872,30 @@ class TestLatitudeWeightGeneration(tests.IrisTest):
         self.assertEqual(weights.shape, self.cube_dim_lat.shape)
         self.assertArrayAlmostEqual(weights[0, 0, :],
                                     np.cos(np.deg2rad(self.lat1d)))
+
+    def test_cosine_latitude_weights_2d_singleton1(self):
+        # 2d latitude coordinate with first dimension singleton
+        cube = self.cube_aux_lat[:, 0:1, :]
+        weights = iris.analysis.cartography.cosine_latitude_weights(cube)
+        self.assertEqual(weights.shape, cube.shape)
+        self.assertArrayAlmostEqual(weights[0, :, :],
+                                    np.cos(np.deg2rad(self.lat2d[0:1, :])))
+
+    def test_cosine_latitude_weights_2d_singleton2(self):
+        # 2d latitude coordinate with second dimension singleton
+        cube = self.cube_aux_lat[:, :, 0:1]
+        weights = iris.analysis.cartography.cosine_latitude_weights(cube)
+        self.assertEqual(weights.shape, cube.shape)
+        self.assertArrayAlmostEqual(weights[0, :, :],
+                                    np.cos(np.deg2rad(self.lat2d[:, 0:1])))
+
+    def test_cosine_latitude_weights_2d_singleton3(self):
+        # 2d latitude coordinate with both dimensions singleton
+        cube = self.cube_aux_lat[:, 0:1, 0:1]
+        weights = iris.analysis.cartography.cosine_latitude_weights(cube)
+        self.assertEqual(weights.shape, cube.shape)
+        self.assertArrayAlmostEqual(weights[0, :, :],
+                                    np.cos(np.deg2rad(self.lat2d[0:1, 0:1])))
 
     def test_cosine_latitude_weights_2d(self):
         # 2d latitude coordinate (time, lat, lon)
@@ -819,6 +967,25 @@ class TestRollingWindow(tests.IrisTest):
         self.assertCML(res_cube, ('analysis', 'rolling_window', 'simple_longitude.cml'))
 
         self.assertRaises(ValueError, self.cube.rolling_window, 'longitude', iris.analysis.MEAN, window=0)
+
+    def test_longitude_masked(self):
+        self.cube.data = ma.array(self.cube.data,
+                                  mask=[[True, True, True, True],
+                                        [True, False, True, True],
+                                        [False, False, False, False]])
+        res_cube = self.cube.rolling_window('longitude',
+                                            iris.analysis.MEAN,
+                                            window=2)
+
+        expected_result = np.ma.array([[-99., -99., -99.],
+                                       [12., 12., -99.],
+                                       [15., 11., 8.]],
+                                      mask=[[True, True, True],
+                                            [False, False, True],
+                                            [False, False, False]],
+                                      dtype=np.float64)
+
+        self.assertMaskedArrayEqual(expected_result, res_cube.data)
 
     def test_longitude_circular(self):
         cube = self.cube
@@ -986,7 +1153,7 @@ class TestProject(tests.GraphicsTest):
         gs.tight_layout(plt.gcf())
 
         # Verify resulting plot
-        self.check_graphic(tol=6e-4)
+        self.check_graphic(tol=1.0)
 
     @iris.tests.skip_data
     def test_no_coord_system(self):

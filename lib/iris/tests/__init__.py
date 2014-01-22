@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2013, Met Office
+# (C) British Crown Copyright 2010 - 2014, Met Office
 #
 # This file is part of Iris.
 #
@@ -34,6 +34,7 @@ import contextlib
 import difflib
 import filecmp
 import gzip
+import inspect
 import logging
 import os
 import os.path
@@ -83,7 +84,7 @@ if '-d' in sys.argv:
 else:
     plt.switch_backend('agg')
 
-_DEFAULT_IMAGE_TOLERANCE = 0.001
+_DEFAULT_IMAGE_TOLERANCE = 10.0
 
 
 def main():
@@ -160,6 +161,41 @@ class IrisTest(unittest.TestCase):
     def _assert_cml(self, cube_xml, reference_xml, reference_filename):
         self._assert_str_same(reference_xml, cube_xml, reference_filename, 'CML')
 
+    def result_path(self, basename=None, ext=''):
+        """
+        Return the full path to a test result, generated from the \
+        calling file, class and, optionally, method.
+
+        Optional kwargs :
+
+            * basename    - File basename. If omitted, this is \
+                            generated from the calling method.
+            * ext         - Appended file extension.
+
+        """
+        if ext and not ext.startswith('.'):
+            ext = '.' + ext
+
+        # Generate the folder name from the calling file name.
+        path = os.path.abspath(inspect.getfile(self.__class__))
+        path = os.path.splitext(path)[0]
+        sub_path = path.rsplit('iris', 1)[1].split('tests', 1)[1][1:]
+
+        # Generate the file name from the calling function name?
+        if basename is None:
+            stack = inspect.stack()
+            for frame in stack[1:]:
+                if 'test_' in frame[3]:
+                    basename = frame[3].replace('test_', '')
+                    break
+        filename = basename + ext
+
+        result = os.path.join(get_result_path(''),
+                              sub_path.replace('test_', ''),
+                              self.__class__.__name__.replace('Test_', ''),
+                              filename)
+        return result
+
     def assertCMLApproxData(self, cubes, reference_filename, *args, **kwargs):
         # passes args and kwargs on to approx equal
         if isinstance(cubes, iris.cube.Cube):
@@ -174,18 +210,30 @@ class IrisTest(unittest.TestCase):
 
         self.assertCML(cubes, reference_filename, checksum=False)
 
-    def assertCDL(self, netcdf_filename, reference_filename):
+    def assertCDL(self, netcdf_filename, reference_filename=None, flags='-h',
+                  basename=None):
         """
         Converts the given CF-netCDF file to CDL for comparison with
         the reference CDL file, or creates the reference file if it
         doesn't exist.
 
         """
+        if reference_filename is None:
+            reference_filename = self.result_path(basename, "cdl")
+
         # Convert the netCDF file to CDL file format.
         cdl_filename = iris.util.create_temp_filename(suffix='.cdl')
 
+        if flags is None:
+            flags = []
+        elif isinstance(flags, basestring):
+            flags = flags.split()
+        else:
+            flags = map(str, flags)
+
         with open(cdl_filename, 'w') as cdl_file:
-            subprocess.check_call(['ncdump', '-h', netcdf_filename], stderr=cdl_file, stdout=cdl_file)
+            subprocess.check_call(['ncdump'] + flags + [netcdf_filename],
+                                  stderr=cdl_file, stdout=cdl_file)
 
         # Ingest the CDL for comparison, excluding first line.
         with open(cdl_filename, 'r') as cdl_file:
@@ -203,7 +251,8 @@ class IrisTest(unittest.TestCase):
         reference_path = get_result_path(reference_filename)
         self._check_same(cdl, reference_path, reference_filename, type_comparison_name='CDL')
 
-    def assertCML(self, cubes, reference_filename, checksum=True):
+    def assertCML(self, cubes, reference_filename=None, checksum=True,
+                  basename=None):
         """
         Checks the given cubes match the reference file, or creates the
         reference file if it doesn't exist.
@@ -211,11 +260,13 @@ class IrisTest(unittest.TestCase):
         """
         if isinstance(cubes, iris.cube.Cube):
             cubes = [cubes]
+        if reference_filename is None:
+            reference_filename = self.result_path(basename, "cml")
 
         if isinstance(cubes, (list, tuple)):
-            xml = iris.cube.CubeList(cubes).xml(checksum=checksum)
+            xml = iris.cube.CubeList(cubes).xml(checksum=checksum, order=False)
         else:
-            xml = cubes.xml(checksum=checksum)
+            xml = cubes.xml(checksum=checksum, order=False)
         reference_path = get_result_path(reference_filename)
         self._check_same(xml, reference_path, reference_filename)
 
@@ -237,19 +288,19 @@ class IrisTest(unittest.TestCase):
             result = np.load(reference_path)
             if isinstance(result, np.lib.npyio.NpzFile):
                 self.assertIsInstance(cube.data, ma.MaskedArray, 'Cube data was not a masked array.')
-                mask = result['mask']
-                # clear the cube's data where it is masked to avoid any non-initialised array data
-                cube.data.data[cube.data.mask] = cube.data.fill_value
-                np.testing.assert_array_almost_equal(cube.data.data, result['data'], *args, **kwargs)
-                np.testing.assert_array_equal(cube.data.mask, mask, *args, **kwargs)
+                # Avoid comparing any non-initialised array data.
+                data = cube.data.filled()
+                np.testing.assert_array_almost_equal(data, result['data'],
+                                                     *args, **kwargs)
+                np.testing.assert_array_equal(cube.data.mask, result['mask'])
             else:
                 np.testing.assert_array_almost_equal(cube.data, result, *args, **kwargs)
         else:
             self._ensure_folder(reference_path)
             logger.warning('Creating result file: %s', reference_path)
             if isinstance(cube.data, ma.MaskedArray):
-                # clear the cube's data where it is masked to avoid any non-initialised array data
-                data = cube.data.data[cube.data.mask] = cube.data.fill_value
+                # Avoid recording any non-initialised array data.
+                data = cube.data.filled()
                 np.savez(file(reference_path, 'wb'), data=data, mask=cube.data.mask)
             else:
                 np.save(file(reference_path, 'wb'), cube.data)
@@ -282,8 +333,9 @@ class IrisTest(unittest.TestCase):
         else:
             self._ensure_folder(reference_path)
             logger.warning('Creating result file: %s', reference_path)
-            open(reference_path, 'w').writelines(line.encode('utf-8') for
-                                                 line in item)
+            open(reference_path, 'w').writelines(
+                part.encode('utf-8') if isinstance(part, unicode) else part
+                for part in item)
 
     def assertXMLElement(self, obj, reference_filename):
         """
@@ -295,9 +347,18 @@ class IrisTest(unittest.TestCase):
         pretty_xml = doc.toprettyxml(indent="  ")
         reference_path = get_result_path(reference_filename)
         self._check_same(pretty_xml, reference_path, reference_filename, type_comparison_name='XML')
-        
+
     def assertArrayEqual(self, a, b, err_msg=''):
         np.testing.assert_array_equal(a, b, err_msg=err_msg)
+
+    def assertMaskedArrayEqual(self, a, b):
+        """
+        Check that masked arrays are equal. This requires the
+        unmasked values and masks to be identical.
+
+        """
+        np.testing.assert_array_equal(a.mask, b.mask)
+        np.testing.assert_array_equal(a[~a.mask].data, b[~b.mask].data)
 
     def assertArrayAlmostEqual(self, a, b):
         np.testing.assert_array_almost_equal(a, b)
@@ -310,7 +371,7 @@ class IrisTest(unittest.TestCase):
 
         """
         np.testing.assert_array_equal(a.mask, b.mask)
-        np.testing.assert_array_almost_equal(a, b)
+        np.testing.assert_array_almost_equal(a[~a.mask].data, b[~b.mask].data)
 
     def assertArrayAllClose(self, a, b, rtol=1.0e-7, atol=0.0, **kwargs):
         """
@@ -334,25 +395,6 @@ class IrisTest(unittest.TestCase):
 
         """
         np.testing.assert_allclose(a, b, rtol=rtol, atol=atol, **kwargs)
-
-    def assertAttributesEqual(self, attr1, attr2):
-        """
-        Asserts two mappings (dictionaries) are equal after
-        stripping out all timestamps of the form 'dd/mm/yy hh:mm:ss Iris: '
-        from values associated with a key of 'history'. This allows
-        tests that compare the attributes property of cubes to be
-        independent of timestamp.
-
-        """
-        def attr_filter(attr):
-            result = {}
-            for key, value in attr.iteritems():
-                if key == 'history':
-                    value = re.sub("[\d\/]{8} [\d\:]{8} Iris\: ", '', str(value))
-                else:
-                    value = str(value)
-            return result
-        return self.assertEqual(attr_filter(attr1), attr_filter(attr2))
 
     @contextlib.contextmanager
     def temp_filename(self, suffix=''):
@@ -424,8 +466,19 @@ class IrisTest(unittest.TestCase):
             if not os.path.isdir(os.path.dirname(expected_fname)):
                 os.makedirs(os.path.dirname(expected_fname))
 
-            result_fname = os.path.join(os.path.dirname(__file__),
-                                        'result_image_comparison',
+            #: The path where the images generated by the tests should go.
+            image_output_directory = os.path.join(os.path.dirname(__file__),
+                                                  'result_image_comparison')
+            if not os.access(image_output_directory, os.W_OK):
+                if not os.access(os.getcwd(), os.W_OK):
+                    raise IOError('Write access to a local disk is required '
+                                  'to run image tests.  Run the tests from a '
+                                  'current working directory you have write '
+                                  'access to to avoid this issue.')
+                else:
+                    image_output_directory = os.path.join(
+                        os.getcwd(), 'iris_image_test_output')
+            result_fname = os.path.join(image_output_directory,
                                         'result-' + unique_id + '.png')
 
             if not os.path.isdir(os.path.dirname(result_fname)):

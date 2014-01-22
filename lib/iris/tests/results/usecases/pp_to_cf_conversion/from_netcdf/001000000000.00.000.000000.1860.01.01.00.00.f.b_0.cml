@@ -24,10 +24,10 @@
         </dimCoord>
       </coord>
       <coord>
-        <dimCoord bounds="[[-950400.0, -864000.0]]" id="2789ad5b" points="[-907200.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='360_day')" value_type="float64" var_name="time"/>
+        <dimCoord bounds="[[-950400.0, -864000.0]]" id="2789ad5b" points="[-864000.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='360_day')" value_type="float64" var_name="time"/>
       </coord>
     </coords>
     <cellMethods/>
-    <data byteorder="little" checksum="-0x5d2e2a1f" dtype="float32" mask_checksum="-0x2abd30b6" mask_order="C" order="C" shape="(94, 128)"/>
+    <data byteorder="little" checksum="-0x463aa758" dtype="float32" fill_value="-1e+30" mask_checksum="-0x2abd30b6" shape="(94, 128)"/>
   </cube>
 </cubes>

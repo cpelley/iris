@@ -21,8 +21,10 @@ Test cube indexing, slicing, and extracting, and also the dot graphs.
 # import iris tests first so that some things can be initialised before importing anything else
 import iris.tests as tests
 
+from contextlib import contextmanager
 import os
 import re
+import sys
 import warnings
 
 import numpy as np
@@ -235,6 +237,10 @@ class TestCubeStringRepresentations(IrisDotTest):
     def setUp(self):
         path = tests.get_data_path(('PP', 'simple_pp', 'global.pp'))
         self.cube_2d = iris.load_cube(path)
+        # Generate the unicode cube up here now it's used in two tests.
+        unicode_str = unichr(40960) + u'abcd' + unichr(1972)
+        self.unicode_cube = iris.tests.stock.simple_1d()
+        self.unicode_cube.attributes['source'] = unicode_str
 
     def test_dot_simple_pp(self):
         # Test dot output of a 2d cube loaded from pp.
@@ -256,13 +262,16 @@ class TestCubeStringRepresentations(IrisDotTest):
     def test_dot_4d(self):
         cube = iris.tests.stock.realistic_4d()
         self.check_dot(cube, ('file_load', '4d_pp.dot'))
-        
-    def test_multiline_history_summary(self):
-        c = self.cube_2d
-        # subtract two cubes from each other to make 2 lines of history
-        c = (c - c) - (c - c)
-        self.assertString(str(c), ('cdm', 'str_repr', 'muliple_history.__str__.txt'))
-        
+
+    def test_missing_coords(self):
+        cube = iris.tests.stock.realistic_4d()
+        cube.remove_coord('time')
+        cube.remove_coord('model_level_number')
+        self.assertString(repr(cube),
+                          ('cdm', 'str_repr', 'missing_coords_cube.repr.txt'))
+        self.assertString(str(cube),
+                          ('cdm', 'str_repr', 'missing_coords_cube.str.txt'))
+
     def test_cubelist_string(self):
         cube_list = iris.cube.CubeList([iris.tests.stock.realistic_4d(),
                                         iris.tests.stock.global_pp()])
@@ -323,23 +332,35 @@ class TestCubeStringRepresentations(IrisDotTest):
         cube.add_aux_coord(aux, 0)
         self.assertString(str(cube), ('cdm', 'str_repr', 'simple.__str__.txt'))
 
-    def test_unicode_attribute(self):
-        unicode_str = unichr(40960) + u'abcd' + unichr(1972)
-        cube = iris.tests.stock.simple_1d()
-        cube.attributes['source'] = unicode_str
-        self.assertString(str(cube), ('cdm', 'str_repr',
-                                      'unicode_attribute.__str__.txt'))
-        self.assertString(unicode(cube), ('cdm', 'str_repr',
-                                          'unicode_attribute.__unicode__.txt'))
+    @contextmanager
+    def unicode_encoding_change(self, new_encoding):
+        default_encoding = sys.getdefaultencoding()
+        reload(sys).setdefaultencoding(new_encoding)
+        yield
+        sys.setdefaultencoding(default_encoding)
+        del sys.setdefaultencoding
 
-    def test_unicode_history(self):
-        unicode_str = unichr(40960) + u'wxyz' + unichr(1972)
-        cube = iris.tests.stock.simple_1d()
-        cube.add_history(unicode_str)
-        self.assertString(str(cube), ('cdm', 'str_repr',
-                                      'unicode_history.__str__.txt'))
-        self.assertString(unicode(cube), ('cdm', 'str_repr',
-                                          'unicode_history.__unicode__.txt'))
+    def test_adjusted_default_encoding(self):
+        # Test cube str representation on non-system-default encodings.
+        # Doing this requires access to a sys method that is removed by default
+        # so reload sys to restore access.
+        # Note this does not currently work with utf-16 or utf-32.
+
+        # Run assertions inside 'with' statement to ensure test file is 
+        # accurately re-created.
+        with self.unicode_encoding_change('utf-8'):
+            self.assertString(str(self.unicode_cube),
+                              ('cdm', 'str_repr',
+                               'unicode_attribute.__str__.utf8.txt'))
+        with self.unicode_encoding_change('ascii'):
+            self.assertString(str(self.unicode_cube),
+                              ('cdm', 'str_repr',
+                               'unicode_attribute.__str__.ascii.txt'))
+
+    def test_unicode_attribute(self):
+        self.assertString(
+            unicode(self.unicode_cube), ('cdm', 'str_repr',
+                                         'unicode_attribute.__unicode__.txt'))
 
 
 @iris.tests.skip_data
@@ -534,17 +555,9 @@ class Test2dIndexing(TestCube2d):
 
 class TestIteration(TestCube2d):
     def test_cube_iteration(self):
-        # Check that creating a cube iterator generates a warning.
-        with warnings.catch_warnings():
-            warnings.simplefilter('error')
-            with self.assertRaises(UserWarning):
-                for subcube in self.t:  # warning->error, so this *fails*
-                    pass
-        # Check we can step through the items, and their shape and number.
-        subcubes = [subcube for subcube in self.t]
-        self.assertEqual(len(subcubes), self.t.shape[0])
-        for subcube in subcubes:
-            self.assertEqual(subcube.shape, self.t.shape[1:])
+        with self.assertRaises(TypeError):
+            for subcube in self.t:
+                pass
 
 
 class Test2dSlicing(TestCube2d):
@@ -889,8 +902,8 @@ class TestCubeEquality(TestCube2d):
         r = self.t.copy()
         self.assertTrue(self.t.is_compatible(r))
         # Different histories.
-        self.t.add_history('One history.')
-        r.add_history('An alternative history.')
+        self.t.attributes['history'] = 'One history.'
+        r.attributes['history'] = 'An alternative history.'
         self.assertFalse(self.t.is_compatible(r))
         # Use ignore keyword.
         self.assertTrue(self.t.is_compatible(r, ignore='history'))
@@ -1037,7 +1050,6 @@ class TestCubeCollapsed(tests.IrisTest):
     def partial_compare(self, dual, single):
         result = iris.analysis.coord_comparison(dual, single)
         self.assertEqual(len(result['not_equal']), 0)
-        self.assertNotEqual(dual.attributes['history'], single.attributes['history'], 'dual and single stage history are equal')
         self.assertEqual(dual.name(), single.name(), "dual and single stage standard_names differ")
         self.assertEqual(dual.units, single.units, "dual and single stage units differ")
         self.assertEqual(dual.shape, single.shape, "dual and single stage shape differ")
@@ -1070,7 +1082,7 @@ class TestCubeCollapsed(tests.IrisTest):
 
         self.assertCML(cube, ('cube_collapsed', 'original.cml'))
 
-        # Compare 2-stage collapsing with a single stage collapse over 2 Coords (ignoring history).
+        # Compare 2-stage collapsing with a single stage collapse over 2 Coords.
         self.collapse_test_common(cube, 'grid_latitude', 'grid_longitude', decimal=1)
         self.collapse_test_common(cube, 'grid_longitude', 'grid_latitude', decimal=1)
 
@@ -1133,16 +1145,16 @@ class TestMaskedData(tests.IrisTest, pp.PPTest):
         # This pp field has no missing data values
         cube = iris.load_cube(tests.get_data_path(["PP", "mdi_handmade_small", "mdi_test_1000_3.pp"]))
 
-        self.assertTrue(isinstance(cube.data, np.ndarray), "Expected a numpy.ndarray")
+        self.assertIsInstance(cube.data, np.ndarray)
 
     def test_masked_field(self):
         # This pp field has some missing data values
         cube = iris.load_cube(tests.get_data_path(["PP", "mdi_handmade_small", "mdi_test_1000_0.pp"]))
-        self.assertTrue(isinstance(cube.data, ma.core.MaskedArray), "Expected a numpy.ma.core.MaskedArray")
+        self.assertIsInstance(cube.data, ma.core.MaskedArray)
 
     def test_missing_file(self):
         cube = self._load_3d_cube()
-        self.assertTrue(isinstance(cube.data, ma.core.MaskedArray), "Expected a numpy.ma.core.MaskedArray")
+        self.assertIsInstance(cube.data, ma.core.MaskedArray)
         self.assertCML(cube, ('cdm', 'masked_cube.cml'))
         
     def test_slicing(self):
@@ -1151,16 +1163,16 @@ class TestMaskedData(tests.IrisTest, pp.PPTest):
         # Test the slicing before deferred loading
         full_slice = cube[3]
         partial_slice = cube[0]
-        self.assertTrue(isinstance(full_slice.data, np.ndarray), "Expected a numpy array")
-        self.assertTrue(isinstance(partial_slice.data, ma.core.MaskedArray), "Expected a numpy.ma.core.MaskedArray")
+        self.assertIsInstance(full_slice.data, np.ndarray)
+        self.assertIsInstance(partial_slice.data, ma.core.MaskedArray)
         self.assertEqual(ma.count_masked(partial_slice._data), 25)
 
         # Test the slicing is consistent after deferred loading
         cube.data
         full_slice = cube[3]
         partial_slice = cube[0]
-        self.assertTrue(isinstance(full_slice.data, np.ndarray), "Expected a numpy array")
-        self.assertTrue(isinstance(partial_slice.data, ma.core.MaskedArray), "Expected a numpy.ma.core.MaskedArray")
+        self.assertIsInstance(full_slice.data, np.ndarray)
+        self.assertIsInstance(partial_slice.data, ma.core.MaskedArray)
         self.assertEqual(ma.count_masked(partial_slice._data), 25)
 
     def test_save_and_merge(self):

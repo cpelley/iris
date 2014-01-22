@@ -78,6 +78,18 @@ class TestSimple(tests.IrisTest):
         sub_list = self.slices.extract(constraint)
         self.assertEqual(len(sub_list), 6)
 
+    def test_cell_equal_bounds(self):
+        cell = self.slices[0].coord('level_height').cell(0)
+        constraint = iris.Constraint(level_height=cell)
+        sub_list = self.slices.extract(constraint)
+        self.assertEqual(len(sub_list), 6)
+
+    def test_cell_different_bounds(self):
+        cell = iris.coords.Cell(10, bound=(9, 11))
+        constraint = iris.Constraint(model_level_number=cell)
+        sub_list = self.slices.extract(constraint)
+        self.assertEqual(len(sub_list), 0)
+
 
 class TestMixin(object):
     """
@@ -245,15 +257,6 @@ class TestCubeListConstraint(RelaxedConstraintMixin, tests.IrisTest):
         cubes = iris.load(files).extract(constraints)
         if not isinstance(cubes, iris.cube.CubeList):
             raise Exception("NOT A CUBE LIST! " + str(type(cubes)))
-        return cubes
-
-
-@iris.tests.skip_data
-class TestCubeLoadStrictConstraint(StrictConstraintMixin, tests.IrisTest):
-    suffix = 'load_strict'
-
-    def load_match(self, files, constraints):
-        cubes = iris.load_strict(files, constraints)
         return cubes
 
 

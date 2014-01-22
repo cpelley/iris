@@ -358,14 +358,22 @@ class TestDimCoordCreation(unittest.TestCase):
         
     def test_dim_coord_restrictions(self):
         # 1d
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegexp(ValueError, 'must be 1-dim'):
             iris.coords.DimCoord([[1,2,3], [4,5,6]]) 
         # monotonic
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegexp(ValueError, 'must be strictly monotonic'):
             iris.coords.DimCoord([1,2,99,4,5]) 
         # monotonic bounds
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegexp(ValueError, 
+                                     'monotonicity.*consistent.*all bounds'):
             iris.coords.DimCoord([1,2,3], bounds=[[1, 12], [2, 9], [3, 6]])
+        # shapes of points and bounds
+        with self.assertRaisesRegexp(ValueError, 'shape of the bounds array'):
+            iris.coords.DimCoord([1,2,3], bounds=[0.5, 1.5, 2.5, 3.5])
+        # another example of shapes of points and bounds
+        with self.assertRaisesRegexp(ValueError, 'shape of the bounds array'):
+            iris.coords.DimCoord([1,2,3], bounds=[[0.5, 1.5],[1.5, 2.5]])
+
         # numeric
         with self.assertRaises(ValueError):
             iris.coords.DimCoord(['Jan', 'Feb', 'March'])
@@ -459,49 +467,8 @@ class TestCoordMaths(tests.IrisTest):
         self.step = 2.3
         self.count = 20
         self._build_coord()
-        
 
-# TODO - Remove this test class and results files when Coord.cos() and Coord.sin() are removed.
-# This class tests two deprecated Coord methods. These methods are now private functions in
-# analysis/calculus.py and corresponding tests are in test_analysis_calculus.py.
-class TestCoordTrig(TestCoordMaths):    
-    def test_sin(self): 
-        sin_of_coord = self.lon.sin()
-        sin_of_coord_radians = self.rlon.sin()
-        
-        # Check the values are correct (within a tolerance)
-        np.testing.assert_array_almost_equal(np.sin(self.rlon.points), sin_of_coord.points)
-        np.testing.assert_array_almost_equal(np.sin(self.rlon.bounds), sin_of_coord.bounds)
-        
-        # Check that the results of the sin function are almost equal when operating on a coord with degrees and radians
-        np.testing.assert_array_almost_equal(sin_of_coord.points, sin_of_coord_radians.points)
-        np.testing.assert_array_almost_equal(sin_of_coord.bounds, sin_of_coord_radians.bounds)
-        
-        self.assertEqual(sin_of_coord.name(), 'sin(latitude)')
-        self.assertEqual(sin_of_coord.units, '1')
-        
-    def test_cos(self):
-        cos_of_coord = self.lon.cos()
-        cos_of_coord_radians = self.rlon.cos()
-        
-        # Check the values are correct (within a tolerance)
-        np.testing.assert_array_almost_equal(np.cos(self.rlon.points), cos_of_coord.points)
-        np.testing.assert_array_almost_equal(np.cos(self.rlon.bounds), cos_of_coord.bounds)
-        
-        # Check that the results of the cos function are almost equal when operating on a coord with degrees and radians
-        np.testing.assert_array_almost_equal(cos_of_coord.points, cos_of_coord_radians.points)
-        np.testing.assert_array_almost_equal(cos_of_coord.bounds, cos_of_coord_radians.bounds)
-        
-        # now that we have tested the points & bounds, remove them and just test the xml
-        cos_of_coord._points = np.array([1], dtype=np.float32)
-        cos_of_coord._bounds = None
-        cos_of_coord_radians._points = np.array([1], dtype=np.float32)
-        cos_of_coord_radians._bounds = None
 
-        self.assertXMLElement(cos_of_coord, ('coord_api', 'coord_maths', 'cos_simple.xml'))
-        self.assertXMLElement(cos_of_coord_radians, ('coord_api', 'coord_maths', 'cos_simple_radians.xml'))
-                
-    
 class TestCoordAdditionSubtract(TestCoordMaths):
     def test_subtract(self):
         r_expl = self.lon - 10

@@ -32,10 +32,17 @@
         </dimCoord>
       </coord>
       <coord>
+        <dimCoord id="acd2e4a5" points="[1.0]" shape="(1,)" standard_name="model_level_number" units="Unit('1')" value_type="float64">
+          <attributes>
+            <attribute name="positive" value="down"/>
+          </attributes>
+        </dimCoord>
+      </coord>
+      <coord>
         <dimCoord id="6a1b3c16" points="[363984.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods/>
-    <data byteorder="little" checksum="-0x4fbe5788" dtype="float32" mask_checksum="-0x28691cce" mask_order="C" order="C" shape="(73, 96)"/>
+    <data byteorder="little" checksum="0x6d6010c1" dtype="float32" fill_value="-1.07374e+09" mask_checksum="-0x28691cce" shape="(73, 96)"/>
   </cube>
 </cubes>

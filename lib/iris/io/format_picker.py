@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2013, Met Office
+# (C) British Crown Copyright 2010 - 2014, Met Office
 #
 # This file is part of Iris.
 #
@@ -134,7 +134,15 @@ class FormatAgent(object):
             if matches:
                 return format_spec
 
-        raise ValueError('No format specification could be found for the given buffer. File element cache:\n %s' % element_cache)
+        printable_values = {}
+        for key, value in element_cache.iteritems():
+            value = str(value)
+            if len(value) > 50:
+                value = value[:50] + '...'
+            printable_values[key] = value
+        msg = ('No format specification could be found for the given buffer.'
+               ' File element cache:\n {}'.format(printable_values))
+        raise ValueError(msg)
 
 
 class FormatSpecification(object):
@@ -199,7 +207,7 @@ class FormatSpecification(object):
         if not isinstance(other, FormatSpecification):
             return NotImplemented
 
-        return cmp( (-self.priority, hash(self)), (-other.priority, hash(self)) )
+        return cmp( (-self.priority, hash(self)), (-other.priority, hash(other)) )
 
     def __repr__(self):
         # N.B. loader is not always going to provide a nice repr if it is a lambda function, hence a prettier version is available in __str__
@@ -217,21 +225,11 @@ class FileElement(object):
     """
     def __init__(self, requires_fh=True):
         """
-        Constructs a new FileElement given a name and a file element getter function.
+        Constructs a new file element, which may require a file buffer.
 
-        Args:
+        Kwargs:
 
-        * name - The name (string) of what the element is representing
-        * element_getter_fn - Function which takes a buffer object and returns the value of the FileElement. The
-                            function must accept a single argument of a file buffer.
         * requires_fh - Whether this FileElement needs a file buffer.
-
-
-        An example of a FileElement would be a "32-bit magic number" which can be created with::
-
-            FileElement('32-bit magic number', lambda buffer_obj: struct.unpack('>L', buffer_obj.read(4))[0])
-
-        .. note::  The given file buffer will always be at the start of the buffer (i.e. have tell() of 0).
 
         """
         self.requires_fh = requires_fh
@@ -252,20 +250,22 @@ class MagicNumber(FileElement):
     len_formats = {4: ">L", 8: ">Q"}
 
     def __init__(self, num_bytes, offset=None):
-        if num_bytes not in self.len_formats:
-            raise ValueError("Unhandled byte length")
-        FileElement.__init__(self, '{}-bit magic number'.format(num_bytes * 8))
+        FileElement.__init__(self)
         self._num_bytes = num_bytes
         self._offset = offset
 
     def get_element(self, basename, file_handle):
-        fmt = self.len_formats[self._num_bytes]
         if self._offset is not None:
             file_handle.seek(self._offset)
         bytes = file_handle.read(self._num_bytes)
+        fmt = self.len_formats.get(self._num_bytes)
         if len(bytes) != self._num_bytes:
             raise EOFError(file_handle.name)
-        return struct.unpack(fmt, bytes)[0]
+        if fmt is None:
+            result = bytes
+        else:
+            result = struct.unpack(fmt, bytes)[0]
+        return result
 
     def __repr__(self):
         return 'MagicNumber({}, {})'.format(self._num_bytes, self._offset)

@@ -24,7 +24,6 @@ import numpy as np
 
 from iris.aux_factory import HybridHeightFactory, HybridPressureFactory
 from iris.coords import AuxCoord, CellMethod, DimCoord
-from iris.fileformats.mosig_cf_map import MOSIG_STASH_TO_CF
 from iris.fileformats.rules import Factory, Reference, ReferenceTarget
 from iris.fileformats.um_cf_map import LBFC_TO_CF, STASH_TO_CF
 from iris.unit import Unit
@@ -145,91 +144,91 @@ def convert(grib):
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 3):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("mean", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 4):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("sum", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 5):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("_difference", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 51):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("mean", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 113):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("mean", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 114):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("sum", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 115):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("mean", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 116):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("sum", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 117):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("mean", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 118):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("_covariance", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 123):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("mean", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 124):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("sum", coords="time"))
 
     if \
             (grib.edition == 1) and \
             (grib.timeRangeIndicator == 125):
         aux_coords_and_dims.append((DimCoord(points=grib.startStep, standard_name='forecast_period', units=grib._forecastTimeUnit), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], bounds=grib.phenomenon_bounds('hours'),  standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN)), None))
         cell_methods.append(CellMethod("standard_deviation", coords="time"))
 
     if \
@@ -242,7 +241,7 @@ def convert(grib):
             (grib.edition == 2) and \
             (grib.productDefinitionTemplateNumber in (8, 9)):
         aux_coords_and_dims.append((DimCoord(points=Unit(grib._forecastTimeUnit).convert(np.int32(grib._forecastTime), "hours"), standard_name='forecast_period', units="hours"), None))
-        aux_coords_and_dims.append((DimCoord(points=np.mean(grib.phenomenon_bounds('hours')), standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN), bounds=grib.phenomenon_bounds('hours')), None))
+        aux_coords_and_dims.append((DimCoord(points=grib.phenomenon_bounds('hours')[0], standard_name='time', units=Unit('hours since epoch', iris.unit.CALENDAR_GREGORIAN), bounds=grib.phenomenon_bounds('hours')), None))
 
     if \
             (grib.edition == 2) and \
@@ -315,6 +314,24 @@ def convert(grib):
             (grib._cf_data is not None) and \
             (grib._cf_data.set_height is not None):
         aux_coords_and_dims.append((DimCoord(points=grib._cf_data.set_height,  long_name="height", units="m", attributes={'positive':'up'}), None))
+
+
+    if \
+            (grib.edition == 2) and \
+            (grib.typeOfFirstFixedSurface != grib.typeOfSecondFixedSurface):
+        warnings.warn("Different vertical bound types not yet handled.")
+
+    if \
+            (grib.edition == 2) and \
+            (grib.typeOfFirstFixedSurface == 103) and \
+            (grib.typeOfSecondFixedSurface == 255):
+        aux_coords_and_dims.append((DimCoord(points=grib.scaledValueOfFirstFixedSurface/(10.0**grib.scaleFactorOfFirstFixedSurface), standard_name="height", units="m"), None))
+
+    if \
+            (grib.edition == 2) and \
+            (grib.typeOfFirstFixedSurface == 103) and \
+            (grib.typeOfSecondFixedSurface != 255):
+        aux_coords_and_dims.append((DimCoord(points=0.5*(grib.scaledValueOfFirstFixedSurface/(10.0**grib.scaleFactorOfFirstFixedSurface) + grib.scaledValueOfSecondFixedSurface/(10.0**grib.scaleFactorOfSecondFixedSurface)), standard_name="height", units="m", bounds=[grib.scaledValueOfFirstFixedSurface/(10.0**grib.scaleFactorOfFirstFixedSurface) , grib.scaledValueOfSecondFixedSurface/(10.0**grib.scaleFactorOfSecondFixedSurface)]), None))
 
     if \
             (grib.edition == 2) and \

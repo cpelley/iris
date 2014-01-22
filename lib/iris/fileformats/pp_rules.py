@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2013, Met Office
+# (C) British Crown Copyright 2013 - 2014, Met Office
 #
 # This file is part of Iris.
 #
@@ -24,7 +24,6 @@ import numpy as np
 
 from iris.aux_factory import HybridHeightFactory, HybridPressureFactory
 from iris.coords import AuxCoord, CellMethod, DimCoord
-from iris.fileformats.mosig_cf_map import MOSIG_STASH_TO_CF
 from iris.fileformats.rules import Factory, Reference, ReferenceTarget
 from iris.fileformats.um_cf_map import LBFC_TO_CF, STASH_TO_CF
 from iris.unit import Unit
@@ -46,14 +45,14 @@ def convert(f):
     if \
             (f.lbtim.ia == 0) and \
             (f.lbtim.ib == 0) and \
-            (f.lbtim.ic in [1, 2, 3]) and \
+            (f.lbtim.ic in [1, 2, 3, 4]) and \
             (len(f.lbcode) != 5 or (len(f.lbcode) == 5 and f.lbcode.ix not in [20, 21, 22, 23] and f.lbcode.iy not in [20, 21, 22, 23])):
         aux_coords_and_dims.append((DimCoord(f.time_unit('hours').date2num(f.t1), standard_name='time', units=f.time_unit('hours')), None))
 
     if \
             (f.lbtim.ia == 0) and \
             (f.lbtim.ib == 1) and \
-            (f.lbtim.ic in [1, 2, 3]) and \
+            (f.lbtim.ic in [1, 2, 3, 4]) and \
             (len(f.lbcode) != 5 or (len(f.lbcode) == 5 and f.lbcode.ix not in [20, 21, 22, 23] and f.lbcode.iy not in [20, 21, 22, 23])):
         aux_coords_and_dims.append((DimCoord(f.time_unit('hours', f.t2).date2num(f.t1), standard_name='forecast_period', units='hours'), None))
         aux_coords_and_dims.append((DimCoord(f.time_unit('hours').date2num(f.t1), standard_name='time', units=f.time_unit('hours')), None))
@@ -61,23 +60,23 @@ def convert(f):
 
     if \
             (f.lbtim.ib == 2) and \
-            (f.lbtim.ic in [1, 2]) and \
+            (f.lbtim.ic in [1, 2, 4]) and \
             ((len(f.lbcode) != 5) or (len(f.lbcode) == 5 and f.lbcode.ix not in [20, 21, 22, 23] and f.lbcode.iy not in [20, 21, 22, 23])):
         aux_coords_and_dims.append((DimCoord(f.lbft, standard_name='forecast_period', units='hours'), None))
-        aux_coords_and_dims.append((DimCoord((f.time_unit('hours').date2num(f.t1) + f.time_unit('hours').date2num(f.t2)) / 2.0, standard_name='time', units=f.time_unit('hours'), bounds=f.time_unit('hours').date2num([f.t1, f.t2])), None))
+        aux_coords_and_dims.append((DimCoord(f.time_unit('hours').date2num(f.t2), standard_name='time', units=f.time_unit('hours'), bounds=f.time_unit('hours').date2num([f.t1, f.t2])), None))
         aux_coords_and_dims.append((DimCoord(f.time_unit('hours').date2num(f.t2) - f.lbft, standard_name='forecast_reference_time', units=f.time_unit('hours')), None))
 
     if \
             (f.lbtim.ib == 3) and \
-            (f.lbtim.ic in [1, 2]) and \
+            (f.lbtim.ic in [1, 2, 4]) and \
             ((len(f.lbcode) != 5) or (len(f.lbcode) == 5 and f.lbcode.ix not in [20, 21, 22, 23] and f.lbcode.iy not in [20, 21, 22, 23])):
         aux_coords_and_dims.append((DimCoord(f.lbft, standard_name='forecast_period', units='hours'), None))
-        aux_coords_and_dims.append((DimCoord((f.time_unit('hours').date2num(f.t1) + f.time_unit('hours').date2num(f.t2)) / 2.0, standard_name='time', units=f.time_unit('hours'), bounds=f.time_unit('hours').date2num([f.t1, f.t2])), None))
+        aux_coords_and_dims.append((DimCoord(f.time_unit('hours').date2num(f.t2), standard_name='time', units=f.time_unit('hours'), bounds=f.time_unit('hours').date2num([f.t1, f.t2])), None))
         aux_coords_and_dims.append((DimCoord(f.time_unit('hours').date2num(f.t2) - f.lbft, standard_name='forecast_reference_time', units=f.time_unit('hours')), None))
 
     if \
             (f.lbtim.ib == 3) and \
-            (f.lbtim.ic in [1, 2]) and \
+            (f.lbtim.ic in [1, 2, 4]) and \
             ((len(f.lbcode) != 5) or (len(f.lbcode) == 5 and f.lbcode.ix not in [20, 21, 22, 23] and f.lbcode.iy not in [20, 21, 22, 23])) and \
             (f.lbmon == 12 and f.lbdat == 1 and f.lbhr == 0 and f.lbmin == 0) and \
             (f.lbmond == 3 and f.lbdatd == 1 and f.lbhrd == 0 and f.lbmind == 0):
@@ -85,7 +84,7 @@ def convert(f):
 
     if \
             (f.lbtim.ib == 3) and \
-            (f.lbtim.ic in [1, 2]) and \
+            (f.lbtim.ic in [1, 2, 4]) and \
             ((len(f.lbcode) != 5) or (len(f.lbcode) == 5 and f.lbcode.ix not in [20, 21, 22, 23] and f.lbcode.iy not in [20, 21, 22, 23])) and \
             (f.lbmon == 3 and f.lbdat == 1 and f.lbhr == 0 and f.lbmin == 0) and \
             (f.lbmond == 6 and f.lbdatd == 1 and f.lbhrd == 0 and f.lbmind == 0):
@@ -93,7 +92,7 @@ def convert(f):
 
     if \
             (f.lbtim.ib == 3) and \
-            (f.lbtim.ic in [1, 2]) and \
+            (f.lbtim.ic in [1, 2, 4]) and \
             ((len(f.lbcode) != 5) or (len(f.lbcode) == 5 and f.lbcode.ix not in [20, 21, 22, 23] and f.lbcode.iy not in [20, 21, 22, 23])) and \
             (f.lbmon == 6 and f.lbdat == 1 and f.lbhr == 0 and f.lbmin == 0) and \
             (f.lbmond == 9 and f.lbdatd == 1 and f.lbhrd == 0 and f.lbmind == 0):
@@ -101,7 +100,7 @@ def convert(f):
 
     if \
             (f.lbtim.ib == 3) and \
-            (f.lbtim.ic in [1, 2]) and \
+            (f.lbtim.ic in [1, 2, 4]) and \
             ((len(f.lbcode) != 5) or (len(f.lbcode) == 5 and f.lbcode.ix not in [20, 21, 22, 23] and f.lbcode.iy not in [20, 21, 22, 23])) and \
             (f.lbmon == 9 and f.lbdat == 1 and f.lbhr == 0 and f.lbmin == 0) and \
             (f.lbmond == 12 and f.lbdatd == 1 and f.lbhrd == 0 and f.lbmind == 0):
@@ -295,9 +294,19 @@ def convert(f):
         aux_coords_and_dims.append((DimCoord(f.blev, standard_name='depth', units='m', bounds=[f.brsvd[0], f.brlev], attributes={'positive': 'down'}), None))
 
     if \
+            (len(f.lbcode) != 5) and \
+            (f.lbvc == 6):
+        aux_coords_and_dims.append((DimCoord(f.blev, standard_name='model_level_number', attributes={'positive': 'down'}), None))
+
+    if \
             (f.lbvc == 8) and \
             (len(f.lbcode) != 5 or (len(f.lbcode) == 5 and 1 not in [f.lbcode.ix, f.lbcode.iy])):
         aux_coords_and_dims.append((DimCoord(f.blev, long_name='pressure', units='hPa'), None))
+
+    if \
+            (len(f.lbcode) != 5) and \
+            (f.lbvc == 19):
+        aux_coords_and_dims.append((DimCoord(f.blev, standard_name='air_potential_temperature', units='K', attributes={'positive': 'up'}), None))
 
     if f.lbvc == 65:
         aux_coords_and_dims.append((DimCoord(f.lblev, standard_name='model_level_number', attributes={'positive': 'up'}), None))
@@ -358,22 +367,17 @@ def convert(f):
         standard_name = "sea_surface_wave_significant_height"
         units = "m"
 
-    if str(f.stash) in MOSIG_STASH_TO_CF:
-        standard_name = MOSIG_STASH_TO_CF[str(f.stash)].name
-        units = MOSIG_STASH_TO_CF[str(f.stash)].unit
-        long_name = None
-
     if str(f.stash) in STASH_TO_CF:
-        standard_name = STASH_TO_CF[str(f.stash)].cfname
-        units = STASH_TO_CF[str(f.stash)].unit
-        long_name = None
+        standard_name = STASH_TO_CF[str(f.stash)].standard_name
+        units = STASH_TO_CF[str(f.stash)].units
+        long_name = STASH_TO_CF[str(f.stash)].long_name
 
     if \
             (not f.stash.is_valid) and \
             (f.lbfc in LBFC_TO_CF):
-        standard_name = LBFC_TO_CF[f.lbfc].cfname
-        units = LBFC_TO_CF[f.lbfc].unit
-        long_name = None
+        standard_name = LBFC_TO_CF[f.lbfc].standard_name
+        units = LBFC_TO_CF[f.lbfc].units
+        long_name = LBFC_TO_CF[f.lbfc].long_name
 
     if f.lbuser[3] == 33:
         references.append(ReferenceTarget('orography', None))

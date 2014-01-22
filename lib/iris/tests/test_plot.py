@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2013, Met Office
+# (C) British Crown Copyright 2010 - 2014, Met Office
 #
 # This file is part of Iris.
 #
@@ -394,7 +394,7 @@ def _load_4d_testcube():
 def _load_wind_no_bounds():
     # Load the COLPEX data => TZYX
     path = tests.get_data_path(('PP', 'COLPEX', 'small_eastward_wind.pp'))
-    wind = iris.load_cube(path, 'eastward_wind')
+    wind = iris.load_cube(path, 'x_wind')
 
     # Remove bounds from all coords that have them.
     wind.coord('grid_latitude').bounds = None
@@ -855,6 +855,7 @@ class TestSymbols(tests.GraphicsTest):
     def test_cloud_cover(self):
         iplt.symbols(range(10), [0] * 10, [iris.symbols.CLOUD_COVER[i]
                                            for i in range(10)], 0.375)
+        iplt.plt.axis('off')
         self.check_graphic()
 
 

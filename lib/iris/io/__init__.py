@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2013, Met Office
+# (C) British Crown Copyright 2010 - 2014, Met Office
 #
 # This file is part of Iris.
 #
@@ -31,11 +31,6 @@ import iris.cube
 import iris.exceptions
 
 
-#: Used by callbacks to specify that the given cube should not be loaded.
-NO_CUBE = 'NOCUBE'
-CALLBACK_DEPRECATION_MSG = "Callback functions with a return value are deprecated."
-
-
 # Saving routines, indexed by file extension.
 class _SaversDict(dict):
     """A dictionary that can only have string keys with no overlap."""
@@ -60,10 +55,13 @@ def run_callback(callback, cube, field, filename):
     Args:
 
     * callback:
-        A function to add metadata from the originating field and/or URI which obeys the following rules:
-            1. Function signature must be: ``(cube, field, filename)``
-            2. Must not return any value - any alterations to the cube must be made by reference
-            3. If the cube is to be rejected the callback must raise an :class:`iris.exceptions.IgnoreCubeException`
+        A function to add metadata from the originating field and/or URI which
+        obeys the following rules:
+            1. Function signature must be: ``(cube, field, filename)``.
+            2. Modifies the given cube inplace, unless a new cube is
+               returned by the function.
+            3. If the cube is to be rejected the callback must raise
+               an :class:`iris.exceptions.IgnoreCubeException`.
 
     .. note::
 
@@ -71,32 +69,23 @@ def run_callback(callback, cube, field, filename):
         the caller of this function should handle this case.
 
     """
-    #call the custom uri cm func, if provided, for every loaded cube
     if callback is None:
         return cube
 
+    # Call the callback function on the cube, generally the function will
+    # operate on the cube in place, but it is also possible that the function
+    # will return a completely new cube instance.
     try:
-        result = callback(cube, field, filename) #  Callback can make changes to cube by reference
+        result = callback(cube, field, filename)
     except iris.exceptions.IgnoreCubeException:
-        return None
+        result = None
     else:
-        if result is not None:
-            #raise TypeError("Callback functions must have no return value.") # no deprecation support method
-
-            if isinstance(result, iris.cube.Cube):
-                # no-op
-                result = result
-            elif result == NO_CUBE:
-                result = None
-            else: # Invalid return type, raise exception
-                raise TypeError("Callback function returned an unhandled data type.")
-
-            # Warn the user that callbacks that return something are deprecated
-            warnings.warn(CALLBACK_DEPRECATION_MSG)
-            return result
-
-        else:
-            return cube
+        if result is None:
+            result = cube
+        elif not isinstance(result, iris.cube.Cube):
+                raise TypeError("Callback function returned an "
+                                "unhandled data type.")
+    return result
 
 
 def decode_uri(uri, default='file'):
@@ -131,16 +120,49 @@ def decode_uri(uri, default='file'):
         ('file', 'dataZoo/...')
 
     '''
-    # Catch bare UNIX and Windows paths
-    i = uri.find(':')
-    if i == -1 or re.match('[a-zA-Z]:', uri):
+    # make sure scheme has at least 2 letters to avoid windows drives
+    # put - last in the brackets so it refers to the character, not a range
+    # reference on valid schemes: http://tools.ietf.org/html/std66#section-3.1
+    match = re.match(r"^([a-zA-Z][a-zA-Z0-9+.-]+):(.+)", uri)
+    if match:
+        scheme = match.group(1)
+        part = match.group(2)
+    else:
+        # Catch bare UNIX and Windows paths
         scheme = default
         part = uri
-    else:
-        scheme = uri[:i]
-        part = uri[i + 1:]
-
     return scheme, part
+
+
+def expand_filespecs(file_specs):
+    """
+    Find all matching file paths from a list of file-specs.
+
+    Args:
+
+    * file_specs (iterable of string):
+        File paths which may contain '~' elements or wildcards.
+
+    Returns:
+        A list of matching file paths.  If any of the file-specs matches no
+        existing files, an exception is raised.
+
+    """
+    # Remove any hostname component - currently unused
+    filenames = [os.path.expanduser(fn[2:] if fn.startswith('//') else fn)
+                 for fn in file_specs]
+
+    # Try to expand all filenames as globs
+    glob_expanded = {fn : sorted(glob.glob(fn)) for fn in filenames}
+
+    # If any of the specs expanded to an empty list then raise an error
+    value_lists = glob_expanded.viewvalues()
+    if not all(value_lists):
+        raise IOError("One or more of the files specified did not exist %s." %
+        ["%s expanded to %s" % (pattern, expanded if expanded else "empty")
+         for pattern, expanded in glob_expanded.iteritems()])
+
+    return sum(value_lists, [])
 
 
 def load_files(filenames, callback):
@@ -154,20 +176,11 @@ def load_files(filenames, callback):
         intended interface for loading is :func:`iris.load`.
 
     """
-    # Remove any hostname component - currently unused
-    filenames = [os.path.expanduser(fn[2:] if fn.startswith('//') else fn) for fn in filenames]
-
-    # Try to expand all filenames as globs
-    glob_expanded = {fn : sorted(glob.glob(fn)) for fn in filenames}
-
-    # If any of the filenames or globs expanded to an empty list then raise an error
-    if not all(glob_expanded.viewvalues()):
-        raise IOError("One or more of the files specified did not exist %s." %
-        ["%s expanded to %s" % (pattern, expanded if expanded else "empty") for pattern, expanded in glob_expanded.iteritems()])
+    all_file_paths = expand_filespecs(filenames)
 
     # Create default dict mapping iris format handler to its associated filenames
     handler_map = collections.defaultdict(list)
-    for fn in sum([x for x in glob_expanded.viewvalues()], []):
+    for fn in all_file_paths:
         with open(fn) as fh:
             handling_format_spec = iris.fileformats.FORMAT_AGENT.get_spec(os.path.basename(fn), fh)
             handler_map[handling_format_spec].append(fn)

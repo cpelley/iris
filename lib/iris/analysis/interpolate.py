@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2013, Met Office
+# (C) British Crown Copyright 2010 - 2014, Met Office
 #
 # This file is part of Iris.
 #
@@ -109,6 +109,11 @@ def nearest_neighbour_indices(cube, sample_points):
 
     Returns:
         The tuple of indices which will select the point in the cube closest to the supplied coordinate values.
+
+    .. note::
+
+        Nearest neighbour interpolation of multidimensional coordinates is not
+        yet supported.
 
     """
     if isinstance(sample_points, dict):
@@ -368,6 +373,7 @@ def regrid(source_cube, grid_cube, mode='bilinear', **kwargs):
         3) Both CS instances must be compatible:
             i.e. of the same type, with the same attribute values, and with compatible coordinates.
         4) No new data dimensions can be created.
+        5) Source cube coordinates to map to a single dimension.
 
     Args:
 
@@ -386,6 +392,12 @@ def regrid(source_cube, grid_cube, mode='bilinear', **kwargs):
 
     Returns:
         A new :class:`iris.cube.Cube` instance.
+
+    .. note::
+
+        The masked status of values are currently ignored.  See :func:\
+`~iris.experimental.regrid.regrid_bilinear_rectilinear_src_and_grid`
+        for regrid support with mask awareness.
 
     """
     # Condition 1
@@ -559,6 +571,9 @@ def linear(cube, sample_points, extrapolation_mode='linear'):
     carried out in sequence, thus providing n-linear interpolation
     (bi-linear, tri-linear, etc.).
 
+    If the input cube's data is masked, the result cube will have a data
+    mask interpolated to the new sample points
+
     .. testsetup::
 
         import numpy as np
@@ -590,7 +605,7 @@ def linear(cube, sample_points, extrapolation_mode='linear'):
     * sample_points
         List of one or more tuple pairs mapping coordinate to desired
         points to interpolate. Points may be a scalar or a numpy array
-        of values.
+        of values.  Multi-dimensional coordinates are not supported.
 
     Kwargs:
 
@@ -775,8 +790,21 @@ def linear(cube, sample_points, extrapolation_mode='linear'):
                 return new_fx
 
         # 2) Interpolate the data and produce our new Cube.
-        data = interpolate(data, sample_values, axis=sample_dim, copy=False)
-        new_cube = iris.cube.Cube(data)
+        if isinstance(data, ma.MaskedArray):
+            # interpolate data, ignoring the mask
+            new_data = interpolate(data.data, sample_values, axis=sample_dim,
+                                   copy=False)
+            # Mask out any results which contain a non-zero contribution
+            # from a masked value when interpolated from mask cast as 1,0.
+            mask_dataset = ma.getmaskarray(data).astype(float)
+            new_mask = interpolate(mask_dataset, sample_values,
+                                   axis=sample_dim, copy=False) > 0
+            # create new_data masked array
+            new_data = ma.MaskedArray(new_data, mask=new_mask)
+        else:
+            new_data = interpolate(data, sample_values, axis=sample_dim,
+                                   copy=False)
+        new_cube = iris.cube.Cube(new_data)
         new_cube.metadata = cube.metadata
 
         # If requested_points is an array scalar then `new_cube` will
@@ -851,6 +879,31 @@ def _resample_coord(coord, src_coord, direction, target_points, interpolate):
     return new_coord
 
 
+def _interp1d_rolls_y():
+    """
+    Determines if :class:`scipy.interpolate.interp1d` rolls its array `y` by
+    comparing the shape of y passed into interp1d to the shape of its internal
+    representation of y.
+
+    SciPy v0.13.x+ no longer rolls the axis of its internal representation
+    of y so we test for this occurring to prevent us subsequently
+    extrapolating along the wrong axis.
+
+    For further information on this change see, for example:
+        * https://github.com/scipy/scipy/commit/0d906d0fc54388464603c63119b9e35c9a9c4601
+          (the commit that introduced the change in behaviour).
+        * https://github.com/scipy/scipy/issues/2621
+          (a discussion on the change - note the issue is not resolved
+          at time of writing).
+
+    """
+    y = np.arange(12).reshape(3, 4)
+    f = interp1d(np.arange(3), y, axis=0)
+    # If the initial shape of y and the shape internal to interp1d are *not*
+    # the same then scipy.interp1d rolls y.
+    return y.shape != f.y.shape
+
+
 class Linear1dExtrapolator(object):
     """
     Extension class to :class:`scipy.interpolate.interp1d` to provide linear extrapolation.
@@ -858,6 +911,8 @@ class Linear1dExtrapolator(object):
     See also: :mod:`scipy.interpolate`.
 
     """
+    roll_y = _interp1d_rolls_y()
+
     def __init__(self, interpolator):
         """
         Given an already created :class:`scipy.interpolate.interp1d` instance, return a callable object
@@ -874,6 +929,9 @@ class Linear1dExtrapolator(object):
         .. note:: These are stored with the interpolator.axis last.
 
         """
+        # Roll interpolator.axis to the end if scipy no longer does it for us.
+        if not self.roll_y:
+            self.y = np.rollaxis(self.y, self._interpolator.axis, self.y.ndim)
 
     def all_points_in_range(self, requested_x):
         """Given the x points, do all of the points sit inside the interpolation range."""
@@ -897,12 +955,12 @@ class Linear1dExtrapolator(object):
             lt = np.where(requested_x < self.x[0])[0]
             ok = np.where( (requested_x >= self.x[0]) & (requested_x <= self.x[-1]) )[0]
 
-            data_shape = list(self._interpolator.y.shape)
+            data_shape = list(self.y.shape)
             data_shape[-1] = len(requested_x)
             result = np.empty(data_shape, dtype=self._interpolator(self.x[0]).dtype)
 
             # Make a variable to represent the slice into the resultant data. (This will be updated in each of gt, lt & ok)
-            interpolator_result_index = [slice(None, None)] * self._interpolator.y.ndim
+            interpolator_result_index = [slice(None, None)] * self.y.ndim
 
             if len(ok) != 0:
                 interpolator_result_index[-1] = ok

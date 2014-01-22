@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2013, Met Office
+# (C) British Crown Copyright 2010 - 2014, Met Office
 #
 # This file is part of Iris.
 #
@@ -18,6 +18,7 @@
 Various utilities and numeric transformations relevant to cartography.
 
 """
+import copy
 import itertools
 import math
 import warnings
@@ -287,8 +288,7 @@ def area_weights(cube, normalize=False):
         If False, weights are grid cell areas. If True, weights are grid
         cell areas divided by the total grid area.
 
-    The cube must have coordinates 'latitude' and 'longitude' with contiguous
-    bounds.
+    The cube must have coordinates 'latitude' and 'longitude' with bounds.
 
     Area weights are calculated for each lat/lon cell as:
 
@@ -334,9 +334,9 @@ def area_weights(cube, normalize=False):
     lon_dim = cube.coord_dims(lon)
     lon_dim = lon_dim[0] if lon_dim else None
 
-    # Ensure they have contiguous bounds
-    if (not lat.is_contiguous()) or (not lon.is_contiguous()):
-        msg = "Currently need contiguous bounds to calculate area weights"
+    if not (lat.has_bounds() and lon.has_bounds()):
+        msg = "Coordinates {!r} and {!r} must have bounds to determine " \
+              "the area weights.".format(lat.name(), lon.name())
         raise ValueError(msg)
 
     # Convert from degrees to radians
@@ -345,32 +345,28 @@ def area_weights(cube, normalize=False):
     lon = lon.copy()
     lon.convert_units('radians')
 
-    # Create 2D weights from bounds
-    if lat.has_bounds() and lon.has_bounds():
-        # Use the geographical area as the weight for each cell
-        # Convert latitudes to co-latitude. I.e from -90 --> +90  to  0 --> pi
-        ll_weights = _quadrant_area(lat.bounds + np.pi / 2.,
-                                    lon.bounds, radius_of_earth)
-
-    # Create 2D weights from points
-    else:
-        raise iris.exceptions.NotYetImplementedError(
-            "Point-based weighting algorithm not yet identified")
-
-    # Do we need to transpose?
-    # Quadrant_area always returns shape (y,x)
-    # Does the cube have them the other way round?
-    if lon_dim < lat_dim:
-        ll_weights = ll_weights.transpose()
+    # Create 2D weights from bounds.
+    # Use the geographical area as the weight for each cell
+    # Convert latitudes to co-latitude. I.e from -90 --> +90  to  0 --> pi
+    ll_weights = _quadrant_area(lat.bounds + np.pi / 2.,
+                                lon.bounds, radius_of_earth)
 
     # Normalize the weights if necessary.
     if normalize:
         ll_weights /= ll_weights.sum()
 
-    # Now we create an array of weights for each cell.
-    broad_weights = iris.util.broadcast_weights(ll_weights,
-                                                cube.data,
-                                                (lat_dim, lon_dim))
+    # Now we create an array of weights for each cell. This process will
+    # handle adding the required extra dimensions and also take care of
+    # the order of dimensions.
+    broadcast_dims = filter(lambda x: x is not None, (lat_dim, lon_dim))
+    wshape = []
+    for idim, dim in zip((0, 1), (lat_dim, lon_dim)):
+        if dim is not None:
+            wshape.append(ll_weights.shape[idim])
+    ll_weights = ll_weights.reshape(wshape)
+    broad_weights = iris.util.broadcast_to_shape(ll_weights,
+                                                 cube.shape,
+                                                 broadcast_dims)
 
     return broad_weights
 
@@ -441,28 +437,33 @@ def cosine_latitude_weights(cube):
                       'clipped to the valid range.',
                       UserWarning)
     points = lat.points
-    if len(lat_dims) > 1:
-        # Ensure the dimension order of the points array matches the cube.
-        order = np.argsort(lat_dims)
-        points = points.transpose(order)
     l_weights = np.cos(points).clip(0., 1.)
 
-    # Create weights for each grid point.
-    broad_weights = iris.util.broadcast_weights(l_weights,
-                                                cube.data,
-                                                lat_dims)
+    # Create weights for each grid point. This operation handles adding extra
+    # dimensions and also the order of the dimensions.
+    broadcast_dims = filter(lambda x: x is not None, lat_dims)
+    wshape = []
+    for idim, dim in enumerate(lat_dims):
+        if dim is not None:
+            wshape.append(l_weights.shape[idim])
+    l_weights = l_weights.reshape(wshape)
+    broad_weights = iris.util.broadcast_to_shape(l_weights,
+                                                 cube.shape,
+                                                 broadcast_dims)
 
     return broad_weights
 
 
 def project(cube, target_proj, nx=None, ny=None):
     """
-    Return a new cube that is the result of projecting a cube from its
-    coordinate system into a specified projection e.g. Robinson or Polar
-    Stereographic. This function is intended to be used in cases where the
-    cube's coordinates prevent one from directly visualising the data, e.g.
-    when the longitude and latitude are two dimensional and do not make up
-    a regular grid.
+    Nearest neighbour regrid to a specified target projection.
+
+    Return a new cube that is the result of projecting a cube with 1 or 2
+    dimensional latitude-longitude coordinates from its coordinate system into
+    a specified projection e.g. Robinson or Polar Stereographic.
+    This function is intended to be used in cases where the cube's coordinates
+    prevent one from directly visualising the data, e.g. when the longitude
+    and latitude are two dimensional and do not make up a regular grid.
 
     Args:
         * cube
@@ -473,9 +474,11 @@ def project(cube, target_proj, nx=None, ny=None):
             will be obtained.
     Kwargs:
         * nx
-            Desired number of sample points in the x direction.
+            Desired number of sample points in the x direction for a domain
+            covering the globe.
         * ny
-            Desired number of sample points in the y direction.
+            Desired number of sample points in the y direction for a domain
+            covering the globe.
 
     Returns:
         An instance of :class:`iris.cube.Cube` and a list describing the
@@ -483,17 +486,24 @@ def project(cube, target_proj, nx=None, ny=None):
 
     .. note::
 
+        This function assumes global data and will if necessary extrapolate
+        beyond the geographical extent of the source cube using a nearest
+        neighbour approach. nx and ny then include those points which are
+        outside of the target projection.
+
+    .. note::
+
+        Masked arrays are handled by passing their masked status to the
+        resulting nearest neighbour values.  If masked, the value in the
+        resulting cube is set to 0.
+
+    .. warning::
+
         This function uses a nearest neighbour approach rather than any form
         of linear/non-linear interpolation to determine the data value of each
         cell in the resulting cube. Consequently it may have an adverse effect
         on the statistics of the data e.g. the mean and standard deviation
         will not be preserved.
-
-    .. note::
-
-        This function assumes global data and will if necessary extrapolate
-        beyond the geographical extent of the source cube using a nearest
-        neighbour approach.
 
     """
     try:
@@ -534,7 +544,9 @@ def project(cube, target_proj, nx=None, ny=None):
         source_x, source_y = np.meshgrid(source_x, source_y)
 
     # Calculate target grid
+    target_cs = None
     if isinstance(target_proj, iris.coord_systems.CoordSystem):
+        target_cs = target_proj
         target_proj = target_proj.as_cartopy_projection()
 
     # Resolution of new grid
@@ -622,7 +634,8 @@ def project(cube, target_proj, nx=None, ny=None):
         index[ydim] = slice(None, None)
         new_data[index] = cartopy.img_transform.regrid(ll_slice.data,
                                                        source_x, source_y,
-                                                       source_cs, target_proj,
+                                                       source_cs,
+                                                       target_proj,
                                                        target_x, target_y)
 
         ## Mask out points beyond extent
@@ -636,8 +649,13 @@ def project(cube, target_proj, nx=None, ny=None):
     new_cube = iris.cube.Cube(new_data)
 
     # Add new grid coords
-    x_coord = iris.coords.DimCoord(target_x[0, :], 'projection_x_coordinate')
-    y_coord = iris.coords.DimCoord(target_y[:, 0], 'projection_y_coordinate')
+    x_coord = iris.coords.DimCoord(
+        target_x[0, :], 'projection_x_coordinate',
+        coord_system=copy.copy(target_cs))
+    y_coord = iris.coords.DimCoord(
+        target_y[:, 0], 'projection_y_coordinate',
+        coord_system=copy.copy(target_cs))
+
     new_cube.add_dim_coord(x_coord, xdim)
     new_cube.add_dim_coord(y_coord, ydim)
 
@@ -679,10 +697,5 @@ def project(cube, target_proj, nx=None, ny=None):
 
     # Copy metadata across
     new_cube.metadata = cube.metadata
-
-    # Record transform in cube's history
-    new_cube.add_history('Converted from {} to {}'.format(
-        type(source_cs).__name__,
-        type(target_proj).__name__))
 
     return new_cube, extent

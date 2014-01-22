@@ -40,7 +40,7 @@
         <auxCoord bounds="[[1.0, 0.994296]]" id="5f88ebd6" long_name="sigma" points="[0.997716]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -48,7 +48,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x17763b08" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x17763b08" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -90,7 +90,7 @@
         <auxCoord bounds="[[0.994296, 0.985204]]" id="5f88ebd6" long_name="sigma" points="[0.990882]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -98,7 +98,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x3e7a41be" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x3e7a41be" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -140,7 +140,7 @@
         <auxCoord bounds="[[0.985204, 0.971644]]" id="5f88ebd6" long_name="sigma" points="[0.979543]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -148,7 +148,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x19a8af44" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x19a8af44" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -190,7 +190,7 @@
         <auxCoord bounds="[[0.971644, 0.95371]]" id="5f88ebd6" long_name="sigma" points="[0.963777]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -198,7 +198,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x7e9d7c07" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x7e9d7c07" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -240,7 +240,7 @@
         <auxCoord bounds="[[0.95371, 0.931527]]" id="5f88ebd6" long_name="sigma" points="[0.943695]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -248,7 +248,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x56b85efa" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x56b85efa" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -290,7 +290,7 @@
         <auxCoord bounds="[[0.931527, 0.905253]]" id="5f88ebd6" long_name="sigma" points="[0.919438]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -298,7 +298,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x1695dfc1" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x1695dfc1" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -340,7 +340,7 @@
         <auxCoord bounds="[[0.905253, 0.875075]]" id="5f88ebd6" long_name="sigma" points="[0.891178]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -348,7 +348,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x31f809c9" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x31f809c9" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -390,7 +390,7 @@
         <auxCoord bounds="[[0.875075, 0.841212]]" id="5f88ebd6" long_name="sigma" points="[0.859118]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -398,7 +398,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x1cfc905c" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x1cfc905c" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -440,7 +440,7 @@
         <auxCoord bounds="[[0.841212, 0.803914]]" id="5f88ebd6" long_name="sigma" points="[0.823493]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -448,7 +448,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x1dc60214" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x1dc60214" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -490,7 +490,7 @@
         <auxCoord bounds="[[0.803914, 0.763465]]" id="5f88ebd6" long_name="sigma" points="[0.784571]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -498,7 +498,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x45a44f1a" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x45a44f1a" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -540,7 +540,7 @@
         <auxCoord bounds="[[0.763465, 0.720176]]" id="5f88ebd6" long_name="sigma" points="[0.742646]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -548,7 +548,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x4ed09a8e" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x4ed09a8e" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -590,7 +590,7 @@
         <auxCoord bounds="[[0.720176, 0.674393]]" id="5f88ebd6" long_name="sigma" points="[0.69805]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -598,7 +598,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0xe3c5965" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0xe3c5965" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -640,7 +640,7 @@
         <auxCoord bounds="[[0.674393, 0.626491]]" id="5f88ebd6" long_name="sigma" points="[0.651143]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -648,7 +648,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x6347d5bd" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x6347d5bd" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -690,7 +690,7 @@
         <auxCoord bounds="[[0.626491, 0.576877]]" id="5f88ebd6" long_name="sigma" points="[0.602314]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -698,7 +698,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x77273f7e" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x77273f7e" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -740,7 +740,7 @@
         <auxCoord bounds="[[0.576877, 0.525991]]" id="5f88ebd6" long_name="sigma" points="[0.551989]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -748,7 +748,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x4bd3a5eb" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x4bd3a5eb" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -790,7 +790,7 @@
         <auxCoord bounds="[[0.525991, 0.474301]]" id="5f88ebd6" long_name="sigma" points="[0.50062]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -798,7 +798,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x129ae43d" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x129ae43d" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -840,7 +840,7 @@
         <auxCoord bounds="[[0.474301, 0.42231]]" id="5f88ebd6" long_name="sigma" points="[0.448693]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -848,7 +848,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x10f0c12e" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x10f0c12e" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -890,7 +890,7 @@
         <auxCoord bounds="[[0.42231, 0.370549]]" id="5f88ebd6" long_name="sigma" points="[0.396726]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -898,7 +898,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x2bb76c16" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x2bb76c16" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -940,7 +940,7 @@
         <auxCoord bounds="[[0.370549, 0.319582]]" id="5f88ebd6" long_name="sigma" points="[0.345265]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -948,7 +948,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0xa4d92e6" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0xa4d92e6" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -990,7 +990,7 @@
         <auxCoord bounds="[[0.319582, 0.270005]]" id="5f88ebd6" long_name="sigma" points="[0.294891]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -998,7 +998,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x64738fcf" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x64738fcf" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1040,7 +1040,7 @@
         <auxCoord bounds="[[0.270005, 0.222443]]" id="5f88ebd6" long_name="sigma" points="[0.246215]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1048,7 +1048,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x3cef3366" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x3cef3366" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1090,7 +1090,7 @@
         <auxCoord bounds="[[0.222443, 0.177555]]" id="5f88ebd6" long_name="sigma" points="[0.199878]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1098,7 +1098,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x4be05ef1" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x4be05ef1" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1140,7 +1140,7 @@
         <auxCoord bounds="[[0.177555, 0.13603]]" id="5f88ebd6" long_name="sigma" points="[0.156554]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1148,7 +1148,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x1054d81c" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x1054d81c" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1190,7 +1190,7 @@
         <auxCoord bounds="[[0.13603, 0.0985881]]" id="5f88ebd6" long_name="sigma" points="[0.116948]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1198,7 +1198,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x6b935418" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x6b935418" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1240,7 +1240,7 @@
         <auxCoord bounds="[[0.0985881, 0.0659808]]" id="5f88ebd6" long_name="sigma" points="[0.0817952]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1248,7 +1248,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x5998cbc6" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x5998cbc6" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1290,7 +1290,7 @@
         <auxCoord bounds="[[0.0659808, 0.0389824]]" id="5f88ebd6" long_name="sigma" points="[0.0518637]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1298,7 +1298,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x4f59aad2" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x4f59aad2" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1340,7 +1340,7 @@
         <auxCoord bounds="[[0.0389824, 0.0183147]]" id="5f88ebd6" long_name="sigma" points="[0.0279368]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1348,7 +1348,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x54f57ef5" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x54f57ef5" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1390,7 +1390,7 @@
         <auxCoord bounds="[[0.0183147, 0.00487211]]" id="5f88ebd6" long_name="sigma" points="[0.0107165]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1398,7 +1398,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x654f0228" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x654f0228" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1440,7 +1440,7 @@
         <auxCoord bounds="[[0.00487211, 0.0]]" id="5f88ebd6" long_name="sigma" points="[0.00130179]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1448,7 +1448,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x34f06e6a" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x34f06e6a" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1490,7 +1490,7 @@
         <auxCoord bounds="[[0.0, 0.0]]" id="5f88ebd6" long_name="sigma" points="[0.0]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1498,7 +1498,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x47c31d91" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x47c31d91" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1540,7 +1540,7 @@
         <auxCoord bounds="[[0.0, 0.0]]" id="5f88ebd6" long_name="sigma" points="[0.0]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1548,7 +1548,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x7a9602c1" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x7a9602c1" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1590,7 +1590,7 @@
         <auxCoord bounds="[[0.0, 0.0]]" id="5f88ebd6" long_name="sigma" points="[0.0]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1598,7 +1598,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x3ace76f3" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x3ace76f3" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1640,7 +1640,7 @@
         <auxCoord bounds="[[0.0, 0.0]]" id="5f88ebd6" long_name="sigma" points="[0.0]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1648,7 +1648,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x43ee3757" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x43ee3757" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1690,7 +1690,7 @@
         <auxCoord bounds="[[0.0, 0.0]]" id="5f88ebd6" long_name="sigma" points="[0.0]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1698,7 +1698,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x4096c383" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x4096c383" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1740,7 +1740,7 @@
         <auxCoord bounds="[[0.0, 0.0]]" id="5f88ebd6" long_name="sigma" points="[0.0]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1748,7 +1748,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="-0x3eff00f7" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="-0x3eff00f7" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1790,7 +1790,7 @@
         <auxCoord bounds="[[0.0, 0.0]]" id="5f88ebd6" long_name="sigma" points="[0.0]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1798,7 +1798,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x43595449" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x43595449" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1840,7 +1840,7 @@
         <auxCoord bounds="[[0.0, 0.0]]" id="5f88ebd6" long_name="sigma" points="[0.0]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1848,7 +1848,7 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x377b59d4" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x377b59d4" dtype="float32" shape="(145, 192)"/>
   </cube>
   <cube standard_name="air_potential_temperature" units="K">
     <attributes>
@@ -1890,7 +1890,7 @@
         <auxCoord bounds="[[0.0, 0.0]]" id="5f88ebd6" long_name="sigma" points="[0.0]" shape="(1,)" units="Unit('1')" value_type="float32"/>
       </coord>
       <coord>
-        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[332724.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
+        <dimCoord bounds="[[332352.0, 333096.0]]" id="6a1b3c16" points="[333096.0]" shape="(1,)" standard_name="time" units="Unit('hours since 1970-01-01 00:00:00', calendar='gregorian')" value_type="float64"/>
       </coord>
     </coords>
     <cellMethods>
@@ -1898,6 +1898,6 @@
         <coord interval="1 hour" name="time"/>
       </cellMethod>
     </cellMethods>
-    <data byteorder="little" checksum="0x44bae4fb" dtype="float32" order="C" shape="(145, 192)"/>
+    <data byteorder="little" checksum="0x44bae4fb" dtype="float32" shape="(145, 192)"/>
   </cube>
 </cubes>

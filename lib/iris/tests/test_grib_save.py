@@ -167,6 +167,28 @@ class TestCubeSave(tests.IrisTest):
         with self.temp_filename(".grib2") as testfile:
             iris.save(cube, testfile)
 
+    def test_bounded_level(self):
+        cube = iris.load_cube(tests.get_data_path(("GRIB", "uk_t",
+                                                   "uk_t.grib2")))
+        # Changing pressure to altitude due to grib api bug:
+        # https://github.com/SciTools/iris/pull/715#discussion_r5901538
+        cube.remove_coord("pressure")
+        cube.add_aux_coord(iris.coords.AuxCoord(
+            1030.0, long_name='altitude', units='m',
+            bounds=np.array([111.0, 1949.0])))
+        with self.temp_filename(".grib2") as testfile:
+            iris.save(cube, testfile)
+            with open(testfile, "rb") as saved_file:
+                g = gribapi.grib_new_from_file(saved_file)
+                self.assertEqual(
+                    gribapi.grib_get_double(g,
+                                            "scaledValueOfFirstFixedSurface"),
+                    111.0)
+                self.assertEqual(
+                    gribapi.grib_get_double(g,
+                                            "scaledValueOfSecondFixedSurface"),
+                    1949.0)
+
 
 class TestHandmade(tests.IrisTest):
 
@@ -203,12 +225,6 @@ class TestHandmade(tests.IrisTest):
 
     def test_no_time_cube(self):
         cube = self._lat_lon_cube_no_time()
-        saved_grib = iris.util.create_temp_filename(suffix='.grib2')
-        self.assertRaises(iris.exceptions.TranslationError, iris.save, cube, saved_grib)
-        os.remove(saved_grib)
-
-    def test_cube_time_no_forecast(self):
-        cube = self._cube_time_no_forecast()
         saved_grib = iris.util.create_temp_filename(suffix='.grib2')
         self.assertRaises(iris.exceptions.TranslationError, iris.save, cube, saved_grib)
         os.remove(saved_grib)
