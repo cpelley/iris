@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2013, Met Office
+# (C) British Crown Copyright 2010 - 2014, Met Office
 #
 # This file is part of Iris.
 #
@@ -21,7 +21,6 @@ Definitions of coordinate systems.
 
 from __future__ import division
 from abc import ABCMeta, abstractmethod
-import warnings
 
 import cartopy.crs
 
@@ -429,6 +428,24 @@ class OSGB(TransverseMercator):
 
     def as_cartopy_projection(self):
         return cartopy.crs.OSGB()
+
+
+class EuroPP(TransverseMercator):
+    """
+    UTM Zone 32 projection for EuroPP domain.
+
+    Ellipsoid is International 1924, Datum is ED50.
+
+    """
+    def __init__(self):
+        TransverseMercator.__init__(self, 50, 9, 1750000, 1500000, 0.9996,
+                                    GeogCS(6378388.000, 6356911.946))
+
+    def as_cartopy_crs(self):
+        return cartopy.crs.EuroPP()
+
+    def as_cartopy_projection(self):
+        return cartopy.crs.EuroPP()
 
 
 class Stereographic(CoordSystem):

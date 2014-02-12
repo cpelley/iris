@@ -31,7 +31,9 @@ __all__ = ['run']
 
 
 # Meridian scaling for British National grid.
-MERIDIAN_SCALING_BNG = 0.9996012717
+ACCEPTED_SCALE_FACTORS = {
+    'OSGB': 0.9996012717,
+    'UTM32': 0.9996}
 
 NIMROD_DEFAULT = -32767.0
 
@@ -124,12 +126,13 @@ def tm_meridian_scaling(cube, field):
     Deal with the scale factor on the central meridian for transverse mercator
     projections if present in the field.
 
-    Currently only caters for British National Grid.
+    Currently only checks for specific scaling factors.
 
     """
     if field.tm_meridian_scaling not in [field.float32_mdi, NIMROD_DEFAULT]:
-        if abs(field.tm_meridian_scaling - MERIDIAN_SCALING_BNG) < 1e-6:
-            pass  # This is the expected value for British National Grid
+        if np.any(abs(np.array(ACCEPTED_SCALE_FACTORS.values()) -
+                      field.tm_meridian_scaling) < 1e-6):
+            pass
         else:
             warnings.warn("tm_meridian_scaling not yet handled: {}"
                           "".format(field.tm_meridian_scaling),
@@ -162,16 +165,51 @@ def british_national_grid_y(cube, field):
                                format(field.origin_corner))
 
 
+def utm_zone_32_grid_x(cube, field):
+    """Add a UTM zone 32 Grid X coord to the cube."""
+    x_coord = DimCoord(np.arange(field.num_cols) * field.column_step +
+                       field.x_origin, standard_name="projection_x_coordinate",
+                       units="m", coord_system=iris.coord_systems.EuroPP())
+    cube.add_dim_coord(x_coord, 1)
+
+
+def utm_zone_32_grid_y(cube, field):
+    """
+    Add a UTM zone 32 Grid Y coord to the cube.
+
+    Currently only handles origin in the top left corner.
+
+    """
+    if field.origin_corner == 0:  # top left
+        y_coord = DimCoord(np.arange(field.num_rows)[::-1] *
+                           -field.row_step + field.y_origin,
+                           standard_name="projection_y_coordinate", units="m",
+                           coord_system=iris.coord_systems.EuroPP())
+        cube.add_dim_coord(y_coord, 0)
+    else:
+        raise TranslationError("Corner {0} not yet implemented".
+                               format(field.origin_corner))
+
+
 def horizontal_grid(cube, field):
     """Add X and Y coords to the cube.
 
-    Currently only handles British National Grid.
+    Currently only handles a subset of available grids.
 
     """
+    if (field.x_offset not in [0, NIMROD_DEFAULT] or
+            field.y_offset not in [0, NIMROD_DEFAULT]):
+        warnings.warn('Coordinates may be suspect, staggered grids not yet '
+                      'supported: ({}, {})'.format(field.x_offset,
+                                                   field.y_offset))
+
     # "NG" (British National Grid)
     if field.horizontal_grid_type == 0:
         british_national_grid_x(cube, field)
         british_national_grid_y(cube, field)
+    elif field.horizontal_grid_type == 4:
+        utm_zone_32_grid_x(cube, field)
+        utm_zone_32_grid_y(cube, field)
     else:
         raise TranslationError("Grid type %d not yet implemented" %
                                field.horizontal_grid_type)
@@ -186,6 +224,7 @@ def orography_vertical_coord(cube, field):
 
 def height_vertical_coord(cube, field):
     """Add a height coord to the cube, if present in the field."""
+    # Undefined value for vertical_coord
     if (field.reference_vertical_coord_type == field.int_mdi or
             field.reference_vertical_coord == field.float32_mdi):
         height_coord = DimCoord(field.vertical_coord,
@@ -230,6 +269,9 @@ def vertical_coord(cube, field):
         if FIELD_CODES.get(field.field_code, None) == "orography":
             orography_vertical_coord(cube, field)
         else:
+            if (field.vertical_coord == 9999.0 and
+                    field.reference_vertical_coord == 9999.0):
+                return
             vertical_code_name = VERTICAL_CODES.get(v_type, None)
             if vertical_code_name == "height":
                 height_vertical_coord(cube, field)
