@@ -360,46 +360,7 @@ def nearest_neighbour_data_value(cube, sample_points):
     return cube.data[indices]
 
 
-def regrid(source_cube, grid_cube, mode='bilinear', **kwargs):
-    """
-    Returns a new cube with values derived from the source_cube on the horizontal grid specified
-    by the grid_cube.
-
-    Fundamental input requirements:
-        1) Both cubes must have a CoordSystem.
-        2) The source 'x' and 'y' coordinates must not share data dimensions with any other coordinates.
-
-    In addition, the algorithm currently used requires:
-        3) Both CS instances must be compatible:
-            i.e. of the same type, with the same attribute values, and with compatible coordinates.
-        4) No new data dimensions can be created.
-        5) Source cube coordinates to map to a single dimension.
-
-    Args:
-
-    * source_cube:
-        An instance of :class:`iris.cube.Cube` which supplies the source data and metadata.
-    * grid_cube:
-        An instance of :class:`iris.cube.Cube` which supplies the horizontal grid definition.
-
-    Kwargs:
-
-    * mode (string):
-        Regridding interpolation algorithm to be applied, which may be one of the following:
-
-            * 'bilinear' for bi-linear interpolation (default), see :func:`iris.analysis.interpolate.linear`.
-            * 'nearest' for nearest neighbour interpolation.
-
-    Returns:
-        A new :class:`iris.cube.Cube` instance.
-
-    .. note::
-
-        The masked status of values are currently ignored.  See :func:\
-`~iris.experimental.regrid.regrid_bilinear_rectilinear_src_and_grid`
-        for regrid support with mask awareness.
-
-    """
+def _regrid_setup(source_cube, grid_cube, **kwargs):
     # Condition 1
     source_cs = source_cube.coord_system(iris.coord_systems.CoordSystem)
     grid_cs = grid_cube.coord_system(iris.coord_systems.CoordSystem)
@@ -472,6 +433,47 @@ def regrid(source_cube, grid_cube, mode='bilinear', **kwargs):
     if source_y_dims:
         new_shape[source_y_dims[0]] = grid_y.shape[0]
 
+
+def regrid(source_cube, grid_cube, mode='bilinear', **kwargs):
+    """
+    Returns a new cube with values derived from the source_cube on the horizontal grid specified
+    by the grid_cube.
+
+    Fundamental input requirements:
+        1) Both cubes must have a CoordSystem.
+        2) The source 'x' and 'y' coordinates must not share data dimensions with any other coordinates.
+
+    In addition, the algorithm currently used requires:
+        3) Both CS instances must be compatible:
+            i.e. of the same type, with the same attribute values, and with compatible coordinates.
+        4) No new data dimensions can be created.
+        5) Source cube coordinates to map to a single dimension.
+
+    Args:
+
+    * source_cube:
+        An instance of :class:`iris.cube.Cube` which supplies the source data and metadata.
+    * grid_cube:
+        An instance of :class:`iris.cube.Cube` which supplies the horizontal grid definition.
+
+    Kwargs:
+
+    * mode (string):
+        Regridding interpolation algorithm to be applied, which may be one of the following:
+
+            * 'bilinear' for bi-linear interpolation (default), see :func:`iris.analysis.interpolate.linear`.
+            * 'nearest' for nearest neighbour interpolation.
+
+    Returns:
+        A new :class:`iris.cube.Cube` instance.
+
+    .. note::
+
+        The masked status of values are currently ignored.  See :func:\
+`~iris.experimental.regrid.regrid_bilinear_rectilinear_src_and_grid`
+        for regrid support with mask awareness.
+
+    """
     new_data = np.empty(new_shape, dtype=source_cube.data.dtype)
 
     # Prepare the index pattern which will be used to insert a single "column" of data.
