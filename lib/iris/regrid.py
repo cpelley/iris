@@ -107,42 +107,41 @@ class NearestRegridder(_Regridder):
 
 
 class AreaOverlapRegridder(_WeightedRegridder):
-    def _regrid(self, data, method=analysis.MEAN, **kwargs):
+    def _regrid(self, data, *args, **kwargs):
         if method != 'conservative':
             return interpolate.regrid_area_weighted_rectilinear_src_and_grid(
-                *args, weights=weights, method=method, **kwargs)
+                *args, weights=self._weights, method=self._method, **kwargs)
         else:
-            return interpolate.regrid_conservative(*args, weights=weights,
-                **kwargs)
+            return interpolate.regrid_conservative(
+                *args, weights=self._weights, method=self._method, **kwargs)
 
 
 class PointInCellRegridder(_WeightedRegridder):
-    def _regrid(self, *args, weights=None, method=analysis.MEAN, **kwargs):
-        if weights is None:
-            weights = self._weights
+    def _regrid(self, *args, **kwargs):
         return interpolate.regrid_weighted_curvilinear_to_rectilinear(
-            *args, weights=weights, method=method, **kwargs)
+            *args, weights=self._weights, method=self._method, **kwargs)
 
 
-def regrid(cube, grid_cube, regridder=None, cached=None):
+def regrid(cube, grid_cube, *args, regridder=None, cached=None, **kwargs):
     if regridder and cached:
         raise TypeError('Either a regridder class or a regridder class '
             'instance should be provided, but not both.')
     if regridder:
-        regridder = regridder(cube, grid_cube)
+        regridder = regridder(cube, grid_cube, *args, **kwargs)
     else:
         regridder = cached
 
-    return regridder.regrid(cube, grid_cube)
+    return regridder.regrid(cube, data)
 
 
-def interpolate(cube, sample_points, interpolator=None, cached=None):
+def interpolate(cube, sample_points, *args, interpolator=None, cached=None,
+        **kwargs):
     if interpolator and cached_interpolator:
         raise TypeError('Either an interpolator class or an interpolator '
             'class instance should be provided, but not both.')
     if interpolator:
-        interpolator = interpolator(cube, grid_cube)
+        interpolator = interpolator(cube, grid_cube, *args, **kwargs)
     else:
         interpolator = cached
 
-    return interpolator.interpolate(cube, grid_cube)
+    return interpolator.interpolate(cube, sample_points)
