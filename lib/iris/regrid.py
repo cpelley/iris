@@ -24,22 +24,41 @@ import iris.experimental.regrid as exregrid
 
 
 class _Regridder(object):
-    def __init__(self, src_cube, target_cube=None, weights=None,
-            mask_tolerance=0.0, **kwargs):
+    def __init__(self, src_cube, target_cube=None, mask_tolerance=0.0, **kwargs):
         self._src_cube = src_cube
         self._target_cube = target_cube
         self._weights = weights
         self._mdtol = mask_tolerance
 
-        self.setup(src_cube, target_cube)
+        self.setup()
 
-    def setup(src_cube, target_cube):
-        # Method that calculates weights, sparse matrix etc. and caches this
+    def setup(self):
+        # Method that contructs the sparse matrix etc. and caches this
         # information in the class instance.
-        return NotImplemented
+        return self._setup(src_cube, target_cube)
 
     def regrid(self, data, **kwargs):
-        return _regrid(data, **kwargs)
+        return self._regrid(data, **kwargs)
+
+
+class _WeightedRegridder(_Regridder):
+    def __init__(self, *args, weights=None, **kwargs):
+        self._weights = self._weights
+        super(_WeightedRegridder, self).__init__(*args, **kwargs)
+
+    @property
+    def weights(self):
+        return self._weights
+
+    def _calculate_weights(self):
+        return NotImplemented
+
+    def setup(self):
+        # Method that calculates the weights and contructs the sparse matrix
+        # etc. and caches this information in the class instance.
+        self._setup()
+        if not weights:
+            self._calculate_weights()
 
 
 class _Interpolator(object):
@@ -87,7 +106,7 @@ class NearestRegridder(_Regridder):
         return interpolate.regrid(*args, mode='nearest', **kwargs)
 
 
-class AreaOverlapRegridder(_Regridder):
+class AreaOverlapRegridder(_WeightedRegridder):
     def _regrid(self, data, method=analysis.MEAN, **kwargs):
         if method != 'conservative':
             return interpolate.regrid_area_weighted_rectilinear_src_and_grid(
@@ -97,7 +116,7 @@ class AreaOverlapRegridder(_Regridder):
                 **kwargs)
 
 
-class PointInCellRegridder(_Regridder):
+class PointInCellRegridder(_WeightedRegridder):
     def _regrid(self, *args, weights=None, method=analysis.MEAN, **kwargs):
         if weights is None:
             weights = self._weights
