@@ -81,45 +81,45 @@ class _NDInterpolator(Regridder):
 
 
 class LinearInterpolator(_Interpolator):
-    def _interpolate(self, *args, extrapolation='linear'):
-        return interpolate.linear(*args, extrapolation, **kwargs)
+    def _interpolate(self, sample_points, extrapolation='linear', **kwargs):
+        return interpolate.linear(sample_points, extrapolation, **kwargs)
 
 
 class LinearRegridder(_Regridder):
-    def _regrid(self, *args, **kwargs):
-        return interpolate.regrid(self, *args, mode='bilinear', **kwargs)
+    def _regrid(self, sample_points, **kwargs):
+        return interpolate.regrid(self, data, mode='bilinear', **kwargs)
 
 
 class NearestInterpolator(_Interpolator):
-    def _interpolate(self, *args, **kwargs):
-        return interpolate.extract_nearest_neighbour(*args, **kwargs)
+    def _interpolate(self, sample_points, **kwargs):
+        return interpolate.extract_nearest_neighbour(sample_points, **kwargs)
 
-    def value(self, *args, **kwargs):
-        return interpolate.nearest_neighbour_data_value(*args, **kwargs)
+    def value(self, sample_points, **kwargs):
+        return interpolate.nearest_neighbour_data_value(sample_points, **kwargs)
 
-    def indices(self, *args, **kwargs):
-        return interpolate.nearest_neighbour_indices(*args, **kwargs)
+    def indices(self, sample_points, **kwargs):
+        return interpolate.nearest_neighbour_indices(sample_points, **kwargs)
 
 
 class NearestRegridder(_Regridder):
-    def _regrid(self, *args, **kwargs):
-        return interpolate.regrid(*args, mode='nearest', **kwargs)
+    def _regrid(self, data, **kwargs):
+        return interpolate.regrid(data, mode='nearest', **kwargs)
 
 
 class AreaOverlapRegridder(_WeightedRegridder):
-    def _regrid(self, data, *args, **kwargs):
+    def _regrid(self, data, **kwargs):
         if method != 'conservative':
             return interpolate.regrid_area_weighted_rectilinear_src_and_grid(
-                *args, weights=self._weights, method=self._method, **kwargs)
+                data, weights=self._weights, method=self._method, **kwargs)
         else:
             return interpolate.regrid_conservative(
-                *args, weights=self._weights, method=self._method, **kwargs)
+                data, weights=self._weights, method=self._method, **kwargs)
 
 
 class PointInCellRegridder(_WeightedRegridder):
-    def _regrid(self, *args, **kwargs):
+    def _regrid(self, data, **kwargs):
         return interpolate.regrid_weighted_curvilinear_to_rectilinear(
-            *args, weights=self._weights, method=self._method, **kwargs)
+            data, weights=self._weights, method=self._method, **kwargs)
 
 
 def regrid(cube, grid_cube, *args, regridder=None, cached=None, **kwargs):
@@ -131,7 +131,7 @@ def regrid(cube, grid_cube, *args, regridder=None, cached=None, **kwargs):
     else:
         regridder = cached
 
-    return regridder.regrid(cube, data)
+    return regridder.regrid(cube, grid_cube.data)
 
 
 def interpolate(cube, sample_points, *args, interpolator=None, cached=None,
