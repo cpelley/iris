@@ -42,7 +42,7 @@ class _Regridder(object):
 
 
 class _WeightedRegridder(_Regridder):
-    def __init__(self, *args, weights=None, **kwargs):
+    def __init__(self, *args, method=analysis.MEAN, weights=None, **kwargs):
         self._weights = self._weights
         super(_WeightedRegridder, self).__init__(*args, **kwargs)
 
