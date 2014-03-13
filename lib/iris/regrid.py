@@ -15,133 +15,122 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Iris.  If not, see <http://www.gnu.org/licenses/>.
 """
-Classes for regridding and interpolating.
+Classes for regridding.
 
 """
-import iris.analysis.interpolate as interpolate
+from abc import ABCMeta, abstractmethod
+
 import iris.analysis as analysis
+import iris.analysis.interpolate as interpolate
 import iris.experimental.regrid as exregrid
 
 
 class _Regridder(object):
-    def __init__(self, src_cube, target_cube=None, mask_tolerance=0.0, **kwargs):
-        self._src_cube = src_cube
-        self._target_cube = target_cube
-        self._weights = weights
-        self._mdtol = mask_tolerance
+    __metaclass__ = ABCMeta
 
-        self.setup()
+    @abstractmethod
+    def setup():
+        # Weights calculation and/sparse matrix calculation perhaps?
+        pass
 
-    def setup(self):
-        # Method that contructs the sparse matrix etc. and caches this
-        # information in the class instance.
-        return self._setup(src_cube, target_cube)
-
-    def regrid(self, data, **kwargs):
-        return self._regrid(data, **kwargs)
-
-
-class _WeightedRegridder(_Regridder):
-    def __init__(self, *args, method=analysis.MEAN, weights=None, **kwargs):
-        self._weights = self._weights
-        super(_WeightedRegridder, self).__init__(*args, **kwargs)
-
-    @property
-    def weights(self):
-        return self._weights
-
-    def _calculate_weights(self):
-        return NotImplemented
-
-    def setup(self):
-        # Method that calculates the weights and contructs the sparse matrix
-        # etc. and caches this information in the class instance.
-        self._setup()
-        if not weights:
-            self._calculate_weights()
-
-
-class _Interpolator(object):
-    def __init__(self, src_cube, **kwargs):
-        self._src_cube = src_cube
-        self.setup(src_cube)
-
-    def setup(self, src_cube):
-        # Method that performs a caching of information and associates this
-        # with the class instance.
-        return NotImplemented
-
-    def interpolate(self, sample_points, **kwargs):
-        return _interpolate(sample_points, **kwargs)
-
-
-class _NDInterpolator(Regridder):
-    def __init__(interpolator):
+    @abstractmethod
+    def regrid(self):
         pass
 
 
-class LinearInterpolator(_Interpolator):
-    def _interpolate(self, sample_points, extrapolation='linear', **kwargs):
-        return interpolate.linear(sample_points, extrapolation, **kwargs)
+class Linear(_Regridder):
+    def __init__(self, src_cube, target_cube):
+        self._src_cube = src_cube
+        self._target_cube = target_cube
+        self.setup()
+
+    def regrid(self, target_cube):
+        # The two algorithms need to have their setup made uniform (similar
+        # restrictions)
+        # regrid_bilinear_rectilinear_src_and_grid:
+        #     Ignores coordinates that share the same dimension as the
+        #     horizontal coordinates.
+        # regrid:
+        #     requires that no coordinate share the same dimension as the
+        # horizontal coordinates.
+        if (target_cube.coord(axis='x').coord_system !=
+                self.src_cube.coord(axis='x').coord_system):
+            return exregrid.regrid_bilinear_rectilinear_src_and_grid(
+                self._src_cube, target_cube)
+        else:
+            return interpolate.regrid(self._src_cube, target_cube,
+                                      mode='bilinear')
 
 
-class LinearRegridder(_Regridder):
-    def _regrid(self, sample_points, **kwargs):
-        return interpolate.regrid(self, data, mode='bilinear', **kwargs)
+class Nearest(_Regridder):
+    def __init__(self, src_cube, target_cube):
+        self._src_cube = src_cube
+        self._target_cube = target_cube
+        self.setup()
+
+    def setup():
+        # Some setup
+        pass
+
+    def regrid(self, target_cube):
+        return interpolate.regrid(self._src_cube, target_cube, mode='nearest')
 
 
-class NearestInterpolator(_Interpolator):
-    def _interpolate(self, sample_points, **kwargs):
-        return interpolate.extract_nearest_neighbour(sample_points, **kwargs)
+class AreaOverlap(_Regridder):
+    def __init__(self, src_cube, target_cube, method=analysis.SUM,
+                 weights=None):
+        self._method = method
+        self._weights = weights
+        self._src_cube = src_cube
+        self._target_cube = target_cube
+        self.setup()
 
-    def value(self, sample_points, **kwargs):
-        return interpolate.nearest_neighbour_data_value(sample_points, **kwargs)
+    def setup():
+        # Currently weights are calculated by the underlying regrid algorithms.
+        # We should give the ability to pass a precomputed weights array.
+        pass
 
-    def indices(self, sample_points, **kwargs):
-        return interpolate.nearest_neighbour_indices(sample_points, **kwargs)
+    def weights(self):
+        return self._weights
 
-
-class NearestRegridder(_Regridder):
-    def _regrid(self, data, **kwargs):
-        return interpolate.regrid(data, mode='nearest', **kwargs)
-
-
-class AreaOverlapRegridder(_WeightedRegridder):
-    def _regrid(self, data, **kwargs):
+    def regrid(self, target_cube, method=analysis.SUM):
+        # Currently these two algorithms differ greatly in what they expect.
+        # regrid_area_weighted_rectilinear_src_and_grid:
+        #    Requires both grids to have the same coordinate systems (changing
+        #    this would be major if calculating the weights)
+        # regrid_conservative:
+        #    Grids do not have to be the same as they are transformed to
+        #    lat-lon before going into ESMPY.
+        #    Assumes spherical earth!
+        #    Calculation made to ESMPY in slices over other dimensions (ESMPY
+        #    can cope with multidimensional)
+        # Additional coordinates that map to the horizontal dimensions are
+        # ignroed.
         if method != 'conservative':
             return interpolate.regrid_area_weighted_rectilinear_src_and_grid(
-                data, weights=self._weights, method=self._method, **kwargs)
+                self._src_cube, target_cube, weights=self._weights)
         else:
             return interpolate.regrid_conservative(
-                data, weights=self._weights, method=self._method, **kwargs)
+                self._src_cube, target_cube, weights=self._weights)
 
 
-class PointInCellRegridder(_WeightedRegridder):
-    def _regrid(self, data, **kwargs):
+class PointInCell(_Regridder):
+    def __init__(self, src_cube, target_cube, weights=None):
+        self._weights = weights
+        self._src_cube = src_cube
+        self._target_cube = target_cube
+        self.setup()
+
+    def setup():
+        # Currently weights are provided by the underlying regrid algorithm.
+        # We should give the ability to calculate this weights array if not
+        # provided (if this is even accurate enough for all projections).
+        # Currently restricted to lat-lon grids anyway.
+        pass
+
+    def weights(self):
+        return self._weights
+
+    def regrid(self, target_cube):
         return interpolate.regrid_weighted_curvilinear_to_rectilinear(
-            data, weights=self._weights, method=self._method, **kwargs)
-
-
-def regrid(cube, grid_cube, *args, regridder=None, cached=None, **kwargs):
-    if regridder and cached:
-        raise TypeError('Either a regridder class or a regridder class '
-            'instance should be provided, but not both.')
-    if regridder:
-        regridder = regridder(cube, grid_cube, *args, **kwargs)
-    else:
-        regridder = cached
-
-    return regridder.regrid(cube, grid_cube.data)
-
-
-def interpolate(cube, sample_points, *args, interpolator=None, cached=None,
-        **kwargs):
-    if interpolator and cached_interpolator:
-        raise TypeError('Either an interpolator class or an interpolator '
-            'class instance should be provided, but not both.')
-    if interpolator:
-        interpolator = interpolator(cube, grid_cube, *args, **kwargs)
-    else:
-        interpolator = cached
-
-    return interpolator.interpolate(cube, sample_points)
+            self._src_cube, target_cube, weights=self._weights)
