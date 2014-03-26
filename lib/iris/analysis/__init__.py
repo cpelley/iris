@@ -1497,6 +1497,7 @@ class Interpolator(object):
         self._mode = extrapolation_mode
 
     def interpolator(self, src_cube, interp_coords, extrapolation_mode=None):
+#    def interpolator(self, src_cube, interp_coords):
         """
         Creates an interpolator to perform interpolation over the given
         :class:`~iris.cube.Cube` using the specified coordinates.

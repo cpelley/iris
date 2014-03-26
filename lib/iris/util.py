@@ -1127,6 +1127,11 @@ def remap_cube_dimensions(cube, remove_axes=None, new_axes=None):
         cube.data
     cube._my_data = cube._my_data[tuple(index)]
 
+    if ma.isMaskedArray(cube._my_data):
+        cube._my_data = ma.asanyarray(cube._my_data)
+    else:
+        cube._my_data = np.asanyarray(cube._my_data)
+
     for coord_and_dims in cube._aux_coords_and_dims[:]:
         coord, dims = coord_and_dims
         if set(dims).intersection(remove_axes):

@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2014, Met Office
+# (C) British Crown Copyright 2014, Met Office
 #
 # This file is part of Iris.
 #
@@ -281,7 +281,8 @@ class Interpolator(object):
         dtype = self.interpolated_dtype(data.dtype)
         if masked:
             result_data = np.ma.empty(result_shape, dtype=dtype)
-            result_data.mask = np.zeros(result_shape, dtype=np.bool)
+            if not isinstance(data.mask, np.ma.MaskType):
+                result_data.mask = np.zeros(result_shape, dtype=np.bool)
         else:
             result_data = np.empty(result_shape, dtype=dtype)
 
@@ -304,7 +305,7 @@ class Interpolator(object):
 
             r = self._interpolate_data_at_coord_points(sub_data, coord_points)
             result_data[interpolant_index] = r
-            if masked:
+            if masked and not isinstance(data.mask, np.ma.MaskType):
                 r = self._interpolate_data_at_coord_points(sub_data.mask,
                                                            coord_points)
                 result_data.mask[interpolant_index] = r > 0
