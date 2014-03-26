@@ -1487,52 +1487,46 @@ def clear_phenomenon_identity(cube):
 #
 ###############################################################################
 
-class Interpolator(object):
+class Linear(object):
     """
-    The abstract base class defines the common framework for all
-    interpolaton schemes.
+    This class provides support for creating an interpolator that performs
+    linear interpolatin over one or more orthogonal coordinates.
 
     """
-    def __init__(self, extrapolation_mode=None):
-        self._mode = extrapolation_mode
-
-    def interpolator(self, src_cube, interp_coords, extrapolation_mode=None):
-#    def interpolator(self, src_cube, interp_coords):
+    def __init__(self, extrapolation_mode='linear'):
         """
-        Creates an interpolator to perform interpolation over the given
-        :class:`~iris.cube.Cube` using the specified coordinates.
+        blah blah
+
+        Kwargs:
+
+        * extrapolation_mode:
+            blah ...
+
+        """
+        self.extrapolation_mode = extrapolation_mode
+
+    def interpolator(self, cube, coords):
+        """
+        Creates a linear interpolator to perform interpolation over the
+        given :class:`~iris.cube.Cube` specified by the dimensions of
+        the specified coordinates.
 
         Args:
 
-        * src_cube:
+        * cube:
             The source :class:`iris.cube.Cube` which contains the data
             to be interpolated from.
-        * interp_coords:
-            The names or coordinate instances which are to be interpolated
-            over.
-        * extrapolation_mode:
-            The extrapolation mode to use with this interpolator.
+
+        * coords:
+            The names or coordinate instances which are to be
+            interpolated over.
+
+        Returns:
+            A :class:`~iris.analysis._interpolator.LinearInterpolator`
+            instance.
 
         """
-        _mode = self._mode
-        if extrapolation_mode is not None:
-            _mode = extrapolation_mode
-        return self._interpolator(src_cube, interp_coords,
-                                  extrapolation_mode=_mode)
-
-    def _interpolator(self, src_cube, interp_coords, extrapolation_mode=None):
-        raise NotImplementedError('Subclass must implement.')
-
-
-class Linear(Interpolator):
-    """
-    This class provides support for creating an interpolator that performs
-    linear interpolation over one or more orthogonal coordinates.
-
-    """
-    def _interpolator(self, src_cube, interp_coords, extrapolation_mode=None):
-        """Creates the linear interpolator instance."""
-        _mode = extrapolation_mode
-        interpolator = LinearInterpolator(src_cube, interp_coords,
-                                          extrapolation_mode=_mode)
-        return interpolator
+        mode = self.extrapolation_mode
+        interp = LinearInterpolator(cube, coords,
+                                    extrapolation_mode=mode)
+        return interp
