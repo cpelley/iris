@@ -1490,17 +1490,25 @@ def clear_phenomenon_identity(cube):
 class Linear(object):
     """
     This class provides support for creating an interpolator that performs
-    linear interpolatin over one or more orthogonal coordinates.
+    linear interpolation over one or more orthogonal coordinates.
 
     """
     def __init__(self, extrapolation_mode='linear'):
         """
-        blah blah
+        Perform linear interpolation over one or more orthogonal coordinates.
 
         Kwargs:
 
         * extrapolation_mode:
-            blah ...
+            Must be one of the following strings:
+
+              * 'linear' - The extrapolation points will be calculated by
+                extending the gradient of closest two points.
+              * 'nan' - The extrapolation points will be be set to NAN.
+              * 'error' - An exception will be raised, notifying an
+                attempt to extrapolate.
+
+            Default mode of extrapolation is 'linear'.
 
         """
         self.extrapolation_mode = extrapolation_mode

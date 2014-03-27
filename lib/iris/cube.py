@@ -3154,8 +3154,8 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
 
         Returns:
             A cube interpolated at the given sample points. The dimensionality
-            of the cube will be the number of original cube dimesions minus the
-            number of scalar coordinates, if collapse_scalar is True.
+            of the cube will be the number of original cube dimensions minus
+            the number of scalar coordinates, if collapse_scalar is True.
 
         """
         interp_coords = [coord for coord, _ in sample_points]
