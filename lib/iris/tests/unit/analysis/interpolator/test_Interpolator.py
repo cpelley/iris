@@ -51,67 +51,63 @@ class Test_LinearInterpolator_1D(ThreeDimCube):
             LinearInterpolator(self.cube, ['doesnt exist'])
 
     def test_interpolate_data_single(self):
-        result = self.interpolator.interpolate_data([1.5], self.data)
-        expected = self.data[:, 1:3, :].mean(axis=1)[:, :, np.newaxis]
-        assert np.all(result == expected), 'Wrong result'
-        self.assertEqual(result.shape, (2, 4, 1))
+        sample_points = [['latitude', [1.5]]]
+        result = self.interpolator.points(sample_points, self.data)
+        expected = self.data[:, 1:3, :].mean(axis=1).reshape(2, 1, 4)
+        self.assertArrayEqual(result, expected)
 
     def test_interpolate_data_multiple(self):
-        result = self.interpolator.interpolate_data([1, 2], self.data)
-        expected = np.transpose(self.data[:, 1:3, :], [0, 2, 1])
-        assert np.all(result == expected), 'Wrong result'
+        sample_points = [['latitude', [1, 2]]]
+        result = self.interpolator.points(sample_points, self.data)
+        self.assertArrayEqual(result, self.data[:, 1:3, :])
 
     def test_interpolate_data_linear_extrapolation(self):
-        # Extrapolation (linear)
-        result = self.interpolator.interpolate_data([-1], self.data)
-        data = self.data[:, 0:1] - (self.data[:, 1:2] - self.data[:, 0:1])
-        expected = np.transpose(data, [0, 2, 1])
-        assert np.all(expected == result), 'Wrong result'
+        sample_points = [['latitude', [-1]]]
+        result = self.interpolator.points(sample_points, self.data)
+        expected = self.data[:, 0:1] - (self.data[:, 1:2] - self.data[:, 0:1])
+        self.assertArrayEqual(result, expected)
 
-    def test_interpolate_data_nan_extrapolation(self):
-        self.interpolator._update_extrapolation_mode('nan')
-        values = self.interpolator._interpolator.values.astype(np.float64)
-        self.interpolator._interpolator.values = values
-        data = self.data.astype(np.float64)
-        result = self.interpolator.interpolate_data([-1], data)
-        assert np.all(np.isnan(result)), 'Wrong result'
+    def _extrapolation_dtype(self, dtype):
+        interpolator = LinearInterpolator(self.cube, ['latitude'],
+                                          extrapolation_mode='nan')
+        data = self.data.astype(dtype)
+        sample_points = [['latitude', [-1]]]
+        result = interpolator.points(sample_points, data)
+        self.assertTrue(np.all(np.isnan(result)))
 
-    def test_interpolate_data_nan_extrapolation_wrong_dtype(self):
-        self.interpolator._update_extrapolation_mode('nan')
-        data = self.data.astype(np.float32)
-        result = self.interpolator.interpolate_data([-1], data)
-        assert np.all(np.isnan(result)), 'Wrong result'
+    def test_extrapolation_nan_float32(self):
+        self._extrapolation_dtype(np.float32)
+
+    def test_extrapolation_nan_float64(self):
+        self._extrapolation_dtype(np.float64)
 
     def test_interpolate_data_error_on_extrapolation(self):
         msg = 'One of the requested xi is out of bounds in dimension 0'
+        interpolator = LinearInterpolator(self.cube, ['latitude'],
+                                          extrapolation_mode='error')
+        sample_points = [['latitude', [-1]]]
         with assert_raises_regexp(ValueError, msg):
-            self.interpolator._update_extrapolation_mode('error')
-            data = self.data.astype(np.float64)
-            result = self.interpolator.interpolate_data([-1], data)
-            assert np.all(np.isnan(result)), 'Wrong result'
+            result = interpolator.points(sample_points, self.data)
 
     def test_bad_sample_points_array(self):
-        msg = 'The resulting numpy array has "object" as its type'
-        with assert_raises_regexp(ValueError, msg):
-            self.interpolator.interpolate_data([[1, 2], [1]], self.cube.data)
+        sample_points = [['latitude', [1, 2]],
+                         ['longitude', [1]]]
+        with self.assertRaises(ValueError):
+            self.interpolator.points(sample_points, self.data)
 
     def test_interpolate_data_dtype_casting(self):
-        self.cube.data = self.cube.data.astype(int)
-        interpolator = LinearInterpolator(self.cube, ['latitude'])
-        result = interpolator.interpolate_data([0.125], self.data).dtype
-        self.assertEqual(result, np.float32)
-
-    def test_orthogonal_points(self):
-        # TODO test it calls interpolate_data appropriately.
-        r = self.interpolator.points([['latitude', [1]]],
-                                     self.cube.data)
+        data = self.data.astype(int)
+        sample_points = [['latitude', [0.125]]]
+        result = self.interpolator.points(sample_points, data)
+        self.assertEqual(result.dtype, np.float64)
 
     def test_interpolate_data_with_data_dims(self):
-        # Array spans 1 of the interpolation dimensions.
-        result = self.interpolator.interpolate_data([1], self.data[0],
-                                                    data_dims=[1, 2])
-        expected = np.transpose(self.data[0, 1].reshape(1, 1, -1), [0, 2, 1])
-        assert np.all(expected == result)
+        sample_points = [['latitude', [1]]]
+        result = self.interpolator.points(sample_points, self.data[0],
+                                          data_dims=[1, 2])
+        temp = self.data[0, 1].reshape(1, 1, 4)
+        expected = np.vstack((temp, temp))
+        self.assertArrayEqual(result, expected)
 
     def teet_inetrpolate_data_with_data_dims_not_interp(self):
         # No interpolation is taking place...
@@ -128,19 +124,22 @@ class SingleLengthDimension(ThreeDimCube):
 
     def test_interpolate_data_linear_extrapolation(self):
         # Linear extrapolation of a single valued element.
-        result = self.interpolator.interpolate_data([1001], self.cube.data)
-        assert np.all(result == self.cube.data)
+        result = self.interpolator.points([['latitude', [1001]]],
+                                          self.cube.data)
+        self.assertArrayEqual(result, self.cube.data)
 
     def test_interpolate_data_nan_extrapolation(self):
-        self.interpolator._update_extrapolation_mode('nan')
-        result = self.interpolator.interpolate_data([1001], self.cube.data)
-        assert np.all(np.isnan(result))
+        interpolator = LinearInterpolator(self.cube, ['latitude'],
+                                          extrapolation_mode='nan')
+        result = interpolator.points([['latitude', [1001]]], self.cube.data)
+        self.assertTrue(np.all(np.isnan(result)))
 
     def test_interpolate_data_nan_extrapolation_not_needed(self):
         # No extrapolation for a single length dimension.
-        self.interpolator._update_extrapolation_mode('nan')
-        result = self.interpolator.interpolate_data([0], self.cube.data)
-        assert np.all(result == self.cube.data)
+        interpolator = LinearInterpolator(self.cube, ['latitude'],
+                                          extrapolation_mode='nan')
+        result = interpolator.points([['latitude', [0]]], self.cube.data)
+        self.assertArrayEqual(result, self.cube.data)
 
     def test_interpolator_overspecified(self):
         msg = 'Coordinates repeat a data dimension - '\
@@ -157,9 +156,10 @@ class Test_LinearInterpolator_monotonic(ThreeDimCube):
         self.interpolator = LinearInterpolator(self.cube, ['latitude'])
 
     def test_interpolate_data(self):
-        result = self.interpolator.interpolate_data([0], self.cube.data)
-        expected = np.transpose(self.data[:, 0:1], [0, 2, 1])
-        assert np.all(result == expected), 'Wrong result'
+        sample_points = [['latitude', [0]]]
+        expected = self.data[:, 0:1, :]
+        result = self.interpolator.points(sample_points, self.data)
+        self.assertArrayEqual(result, expected)
 
 
 class Test_LinearInterpolator_circular(ThreeDimCube):
@@ -169,30 +169,29 @@ class Test_LinearInterpolator_circular(ThreeDimCube):
                                                           endpoint=False)
         self.cube.coord('longitude').circular = True
         self.cube.coord('longitude').units = 'degrees'
-        self.interpolator = LinearInterpolator(self.cube, ['longitude'])
+        self.interpolator = LinearInterpolator(self.cube, ['longitude'],
+                                               extrapolation_mode='nan')
 
     def test_interpolate_data_fully_wrapped(self):
-        self.interpolator._update_extrapolation_mode('nan')
-        expected = self.interpolator.interpolate_data([180, 270],
-                                                      self.cube.data)
-        result = self.interpolator.interpolate_data([-180, -90],
-                                                    self.cube.data)
+        expected = self.interpolator.points([['longitude', [180, 270]]],
+                                            self.data)
+        result = self.interpolator.points([['longitude', [-180, -90]]],
+                                          self.data)
         self.assertArrayEqual(expected, result)
 
     def test_interpolate_data_partially_wrapped(self):
-        self.interpolator._update_extrapolation_mode('nan')
-        expected = self.interpolator.interpolate_data([180, 90],
-                                                      self.cube.data)
-        result = self.interpolator.interpolate_data([-180, 90],
-                                                    self.cube.data)
+        expected = self.interpolator.points([['longitude', [180, 90]]],
+                                            self.data)
+        result = self.interpolator.points([['longitude', [-180, 90]]],
+                                          self.data)
         self.assertArrayEqual(expected, result)
 
     def test_interpolate_data_fully_wrapped_twice(self):
         xs = np.linspace(-360, 360, 100)
         xs_not_wrapped = (xs + 360) % 360
-        result = self.interpolator.interpolate_data(xs, self.cube.data)
-        expected = self.interpolator.interpolate_data(xs_not_wrapped,
-                                                      self.cube.data)
+        expected = self.interpolator.points([['longitude', xs]], self.data)
+        result = self.interpolator.points([['longitude', xs_not_wrapped]],
+                                          self.data)
         self.assertArrayEqual(expected, result)
 
 # XXX Test Masked data...
@@ -221,36 +220,36 @@ class Test_LinearInterpolator_2D(ThreeDimCube):
                                                ['latitude', 'longitude'])
 
     def test_interpolate_data(self):
-        result = self.interpolator.interpolate_data([[1, 2], [2, 2]],
-                                                    self.data)
-        assert np.all(result ==
-                      self.data[:, 1:3, 2:3].reshape(-1, 2)), 'Wrong result'
-        self.assertEqual(result.shape, (2, 2))
+        sample_points = [['longitude', [2]],
+                         ['latitude', [1, 2]]]
+        result = self.interpolator.points(sample_points,
+                                          self.cube.data)
+        expected = self.data[:, 1:3, 2:3]
+        self.assertArrayEqual(result, expected)
 
     def test_orthogonal_points(self):
         sample_points = [['longitude', [1, 2]],
                          ['latitude', [1, 2]]]
         result = self.interpolator.points(sample_points,
                                           self.cube.data)
-        coord_points = [[1, 1], [1, 2], [2, 1], [2, 2]]
-        expected = self.interpolator.interpolate_data(coord_points,
-                                                      self.cube.data)
-        expected = expected.reshape(-1, 2, 2)
-        assert np.all(result == expected), 'Wrong values'
+        expected = self.data[:, 1:3, 1:3]
+        self.assertArrayEqual(result, expected)
 
     def test_interpolate_data_data_dims(self):
-        result = self.interpolator.interpolate_data([0, 0],
-                                                    self.data[:, 0],
-                                                    data_dims=[0, 2])
-        expected = self.data[:, 0, 0].reshape(-1, 1)
-        assert np.all(result == expected)
+        sample_points = [['longitude', [0]],
+                         ['latitude', [0]]]
+        result = self.interpolator.points(sample_points, self.data[:, 0],
+                                          data_dims=[0, 2])
+        expected = self.data[:, 0, 0].reshape(2, 1, 1)
+        self.assertArrayEqual(result, expected)
 
     def test_interpolate_data_data_dims_multi_point(self):
-        result = self.interpolator.interpolate_data([[0, 0], [1, 0], [2, 0]],
-                                                    self.data[:, 0],
-                                                    data_dims=[0, 2])
-        expected = np.repeat(self.data[:, 0, 0].reshape(-1, 1), 3, axis=1)
-        assert np.all(result == expected)
+        sample_points = [['longitude', [0]],
+                         ['latitude', [0, 1, 2]]]
+        result = self.interpolator.points(sample_points, self.data[:, 0],
+                                          data_dims=[0, 2])
+        expected = np.repeat(self.data[:, 0, 0].reshape(2, 1, 1), 3, axis=1)
+        self.assertArrayEqual(result, expected)
 
     def test_orthogonal_points_data_dims(self):
         sample_points = [['latitude', 0],
@@ -292,36 +291,19 @@ class Test_LinearInterpolator_2D_non_contiguous(ThreeDimCube):
         self.interpolator = LinearInterpolator(self.cube, coords)
 
     def test_interpolate_data_multiple(self):
-        result = self.interpolator.interpolate_data([[1, 1], [1, 2]],
-                                                    self.data)
+        sample_points = [['longitude', [1, 2]],
+                         ['height', [1]]]
+        result = self.interpolator.points(sample_points, self.data)
         expected = self.data[1:2, :, 1:3]
-        assert np.all(result == expected), 'Wrong result'
-
-    def test_interpolate_data_single(self):
-        result = self.interpolator.interpolate_data([[1, 1]], self.data)
-        expected = self.interpolator.interpolate_data([1, 1], self.data)
-        assert np.all(result == expected)
-
-    def test_interpolate_data_wrong_n_coordinates(self):
-        msg = 'coordinates are not appropriate for the interpolator'
-        with assert_raises_regexp(ValueError, msg):
-            self.interpolator.interpolate_data([1], self.data)
-
-    def test_interpolate_data_wrong_shape_coordinates(self):
-        msg = ('There are 2 '
-               r'dimension\(s\) and ideally the given coordinate array '
-               r'should have a shape of \(npts\, 2\). Got an array of shape '
-               r'\(2\, 4\)')
-        with assert_raises_regexp(ValueError, msg):
-            self.interpolator.interpolate_data([[1, 1, 2, 2],
-                                                [1, 2, 1, 2]],
-                                               self.cube.data)
+        self.assertArrayEqual(result, expected)
 
     def test_intepolate_data_wrong_data_shape(self):
-        msg = 'data being interpolated is not consistent with ' \
+        msg = 'Data being interpolated is not consistent with ' \
             'the data passed through'
+        sample_points = [['longitude', [1]],
+                         ['height', [0]]]
         with assert_raises_regexp(ValueError, msg):
-            self.interpolator.interpolate_data([1, 0], self.data[0])
+            self.interpolator.points(sample_points, self.data[0])
 
     def test_interpolate_points_data_order(self):
         sample_points1 = [['longitude', [0]],
@@ -356,9 +338,8 @@ class Test_LinearInterpolator_2D_non_contiguous(ThreeDimCube):
 
     def test_orthogonal_cube_scalar_value(self):
         cube = self.cube[0, 0, 0]
-        interpolator = LinearInterpolator(cube, ['latitude'])
-        result_cube = interpolator([['latitude', 1]])
-        self.assertEqual(result_cube._my_data.ndim, 1)
+        with self.assertRaises(ValueError):
+            LinearInterpolator(cube, ['latitude'])
 
     def test_orthogonal_cube_squash(self):
         result_cube = self.interpolator([['height', np.int64(0)],
