@@ -95,9 +95,12 @@ class LinearInterpolator(object):
 
 
         """
-        self.cube = cube
-        self.coords = []
-        self.mode = extrapolation_mode
+        # Snapshot the state of the cube to ensure that it doesn't change.
+        self._cube = cube.copy()
+        self._coords = []
+        self._mode = extrapolation_mode
+        if self._mode is None:
+            self._mode = _MODE_LINEAR
 
         self._coord_points = []
         self._coord_dims = []
@@ -105,6 +108,18 @@ class LinearInterpolator(object):
         self._interpolator = None
 
         self._setup(coords)
+
+    @property
+    def cube(self):
+        return self._cube
+
+    @property
+    def coords(self):
+        return self._coords
+
+    @property
+    def extrapolation_mode(self):
+        return self._mode
 
     def _account_for_circular(self, coord_points, data):
         """
@@ -145,37 +160,29 @@ class LinearInterpolator(object):
                                                           data,
                                                           bounds_error=False,
                                                           fill_value=None)
-        self._interpolator_mode()
-        self._interpolator.values = data
-        return self._interpolator(coord_points)
-
-    def _interpolator_mode(self):
-        """
-        Configure the underlying interpolator given the mode of
-        extrapolation.
-
-        """
-        if self.mode is None:
-            self.mode = _MODE_LINEAR
-
-        if self.mode == _MODE_LINEAR:
+        # Configure the underlying interpolator given
+        # the mode of extrapolation.
+        if self._mode == _MODE_LINEAR:
             self._interpolator.bounds_error = False
             self._interpolator.fill_value = None
-        elif self.mode == _MODE_ERROR:
+        elif self._mode == _MODE_ERROR:
             self._interpolator.bounds_error = True
-        elif self.mode == _MODE_NAN:
+        elif self._mode == _MODE_NAN:
             self._interpolator.bounds_error = False
             self._interpolator.fill_value = np.nan
         else:
             msg = 'Extrapolation mode {!r} not supported.'
-            raise ValueError(msg.format(self.mode))
+            raise ValueError(msg.format(self._mode))
+
+        self._interpolator.values = data
+        return self._interpolator(coord_points)
 
     def _prepare_points(self, sample_points):
         cube_dim_to_result_dim = {}
         interp_coords_seen = 0
-        total_non_interp_coords = self.cube.ndim - len(self._coord_dims)
+        total_non_interp_coords = self._cube.ndim - len(self._coord_dims)
 
-        for dim in range(self.cube.ndim):
+        for dim in range(self._cube.ndim):
             if dim not in self._coord_dims:
                 cube_dim_to_result_dim[dim] = dim - interp_coords_seen
             else:
@@ -186,9 +193,9 @@ class LinearInterpolator(object):
         result_to_cube_dim = {v: k for k, v in cube_dim_to_result_dim.items()}
 
         # The shape of the data after full interpolation of each dimension.
-        interpolated_shape = list(self.cube.shape)
+        interpolated_shape = list(self._cube.shape)
         interp_points = []
-        for sample_coord, points, dim in zip(self.coords,
+        for sample_coord, points, dim in zip(self._coords,
                                              sample_points,
                                              self._coord_dims):
             points = np.array(points, ndmin=1)
@@ -224,7 +231,7 @@ class LinearInterpolator(object):
         """
         data = self.points(sample_points, coord.points, coord_dims)
         index = tuple(0 if dim not in coord_dims else slice(None)
-                      for dim in range(self.cube.ndim))
+                      for dim in range(self._cube.ndim))
         new_points = data[index]
         # Watch out for DimCoord instances that are no longer monotonic
         # after the resampling.
@@ -241,14 +248,14 @@ class LinearInterpolator(object):
         cube and the specified coordinates to be interpolated over.
 
         """
-        cube = self.cube
+        cube = self._cube
         # Triggers the loading - is that really necessary...?
-        data = self.cube.data
-        self.coords = [self.cube.coord(coord) for coord in coords]
+        data = self._cube.data
+        self._coords = [self._cube.coord(coord) for coord in coords]
 
         coord_points_list = []
 
-        for interp_dim, coord in enumerate(self.coords):
+        for interp_dim, coord in enumerate(self._coords):
             coord_dims = cube.coord_dims(coord)
 
             if getattr(coord, 'circular', False):
@@ -279,11 +286,11 @@ class LinearInterpolator(object):
         performed.
 
         """
-        if len(set(self._coord_dims)) != len(self.coords):
+        if len(set(self._coord_dims)) != len(self._coords):
             raise ValueError('Coordinates repeat a data dimension - the '
                              'interpolation would be over-specified.')
 
-        for coord in self.coords:
+        for coord in self._coords:
             if coord.ndim != 1:
                 raise ValueError('Interpolation coords must be 1-d for '
                                  'rectilinear interpolation.')
@@ -306,9 +313,9 @@ class LinearInterpolator(object):
                                   for is_decreasing, points in pairs]
 
     def _validate_sample_points(self, sample_points):
-        if len(sample_points) != len(self.coords):
+        if len(sample_points) != len(self._coords):
             msg = 'Expected sample points for {} coordinates, got {}.'
-            raise ValueError(msg.format(len(self.coords), len(sample_points)))
+            raise ValueError(msg.format(len(self._coords), len(sample_points)))
 
     def interpolated_dtype(self, dtype):
         """
@@ -373,7 +380,7 @@ class LinearInterpolator(object):
         self._validate_sample_points(sample_points)
 
         points, final_shape, final_order = self._prepare_points(sample_points)
-        data_dims = data_dims or range(self.cube.ndim)
+        data_dims = data_dims or range(self._cube.ndim)
 
         if len(data_dims) != data.ndim:
             msg = 'Data being interpolated is not consistent with ' \
@@ -385,14 +392,14 @@ class LinearInterpolator(object):
             msg = 'Currently only increasing data_dims is supported.'
             raise NotImplementedError(msg)
 
-        if data_dims != range(self.cube.ndim):
+        if data_dims != range(self._cube.ndim):
             # Broadcast the data into the shape of the original cube.
             strides = list(data.strides)
-            for dim in range(self.cube.ndim):
+            for dim in range(self._cube.ndim):
                 if dim not in data_dims:
                     strides.insert(dim, 0)
 
-            data = as_strided(data, strides=strides, shape=self.cube.shape)
+            data = as_strided(data, strides=strides, shape=self._cube.shape)
 
         points, data = self._account_for_circular(points, data)
 
@@ -468,7 +475,7 @@ class LinearInterpolator(object):
         """
         self._validate_sample_points(sample_points)
 
-        data = self.cube.data
+        data = self._cube.data
         # Interpolate the cube payload.
         interpolated_data = self.points(sample_points, data)
         # Ensure the data payload has non-zero dimensionality.
@@ -484,7 +491,7 @@ class LinearInterpolator(object):
                 if np.array(points).ndim == 0:
                     _new_scalar_dims.append(dim)
 
-        cube = self.cube
+        cube = self._cube
         new_cube = iris.cube.Cube(interpolated_data)
         new_cube.metadata = cube.metadata
 
@@ -504,8 +511,8 @@ class LinearInterpolator(object):
         # Copy/interpolate the coordinates.
         for coord in cube.dim_coords:
             dim, = cube.coord_dims(coord)
-            if coord in self.coords:
-                new_points = sample_points[self.coords.index(coord)]
+            if coord in self._coords:
+                new_points = sample_points[self._coords.index(coord)]
                 new_coord = construct_new_coord_given_points(coord, new_points)
             elif set([dim]).intersection(set(self._coord_dims)):
                 # Interpolate the coordinate payload.
@@ -524,8 +531,8 @@ class LinearInterpolator(object):
 
         for coord in cube.aux_coords:
             dims = cube.coord_dims(coord)
-            if coord in self.coords:
-                index = self.coords.index(coord)
+            if coord in self._coords:
+                index = self._coords.index(coord)
                 new_points = sample_points[index]
                 new_coord = construct_new_coord_given_points(coord, new_points)
                 dims = [self._coord_dims[index]]
@@ -545,7 +552,7 @@ class LinearInterpolator(object):
                 new_cube._add_unique_aux_coord(new_coord, new_dims)
             coord_mapping[id(coord)] = new_coord
 
-        for factory in self.cube.aux_factories:
+        for factory in self._cube.aux_factories:
             new_cube.add_aux_factory(factory.updated(coord_mapping))
 
         if _new_scalar_dims:
