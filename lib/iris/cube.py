@@ -3158,9 +3158,9 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
             the number of scalar coordinates, if collapse_scalar is True.
 
         """
-        interp_coords = [coord for coord, _ in sample_points]
-        interp = scheme.interpolator(self, interp_coords)
-        return interp(sample_points, collapse_scalar=collapse_scalar)
+        coords, points = zip(*sample_points)
+        interp = scheme.interpolator(self, coords)
+        return interp(points, collapse_scalar=collapse_scalar)
 
 
 class ClassDict(object, UserDict.DictMixin):
