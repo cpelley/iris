@@ -471,7 +471,7 @@ class LinearInterpolator(object):
         * sample_points:
             A sequence of coordinate points over which to interpolate.
             The order of the coordinate points must match the order of
-            the coordinates passed to thid interpolator's constructor.
+            the coordinates passed to this interpolator's constructor.
 
         Kwargs:
 
@@ -480,9 +480,16 @@ class LinearInterpolator(object):
             in the resulting cube. Default is True.
 
         Returns:
-            A cube interpolated at the given sample points. The dimensionality
-            of the cube will be the number of original cube dimensions minus
-            the number of scalar coordinates, if collapse_scalar is True.
+
+            A cube containing data interpolated to the specified point values
+            of the interpolation coordinates.
+
+            .. note::
+
+                Dimensions interpolated on are reduced to a single, unbounded
+                point.  If "collapse_scalar" is True, these dimensions are
+                also removed, and any coordinates mapped to them (including the
+                interpolation coordinates) become scalar coordinates.
 
         """
         self._validate_sample_points(sample_points)

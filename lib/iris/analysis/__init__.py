@@ -1515,9 +1515,9 @@ class Linear(object):
 
     def interpolator(self, cube, coords):
         """
-        Creates a linear interpolator to perform interpolation over the
-        given :class:`~iris.cube.Cube` specified by the dimensions of
-        the specified coordinates.
+        Creates a linear interpolator to perform interpolations on the given
+        :class:`~iris.cube.Cube`, in the dimensions covered by the specified
+        coordinates.
 
         Args:
 
@@ -1530,8 +1530,29 @@ class Linear(object):
             interpolated over.
 
         Returns:
-            A :class:`~iris.analysis._interpolator.LinearInterpolator`
-            instance.
+
+            An interpolator object, which can be called to interpolate the cube
+            in the relevant dimensions.
+            The interpolator call has arguments
+            "(sample_points, collapse_scalar=True)", where 'sample_points' is a
+            tuple of coordinate point values.
+            It returns the cube interpolated onto those coordinate points
+            -- i.e. the interpolated dimensions are collapsed to a point.
+            By default, the collapsed dimensions are also removed, but if
+            'collapse_scalar' is False they are retained.
+
+            For example::
+
+                scheme = Linear(extrapolation_mode='nan')
+                op = scheme.interpolator(rh_cube, ('latitude', 'longitude'))
+                for i_station, (lat, lon) in enumerate(station_locations):
+                    station_rh_cubes[i_station] = op((lat, lon))
+
+        .. note::
+
+            In most cases, it will be simpler to use
+            :meth:`iris.cube.Cube.interpolate`, which calls this method
+            indirectly.
 
         """
         mode = self.extrapolation_mode
