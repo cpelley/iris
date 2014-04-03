@@ -92,6 +92,8 @@ class LinearInterpolator(object):
             self._mode = _MODE_LINEAR
         # The point values defining the dimensions to be interpolated.
         self._src_dims_points = []
+        # A list of flags indicating dimensions that need to be reversed.
+        self._coord_decreasing = []
         # The cube dimensions to be interpolated over.
         self._interp_dims = []
         # XXX meta-data to support circular data-sets.
@@ -278,10 +280,12 @@ class LinearInterpolator(object):
         # Force all coordinates to be monotonically increasing. Generally this
         # isn't always necessary for a rectilinear interpolator, but it is a
         # common requirement.
-        self._src_dims_points = [(points[::-1]
-                                  if points.size > 1 and points[1] < points[0]
-                                  else points)
-                                 for points in self._src_dims_points]
+        self._coord_decreasing = [points.size > 1 and points[1] < points[0]
+                                  for points in self._src_dims_points]
+        if np.any(self._coord_decreasing):
+            pairs = izip(self._coord_decreasing, self._src_dims_points)
+            self._src_dims_points = [points[::-1] if is_decreasing else points
+                                     for is_decreasing, points in pairs]
 
         self._validate()
 
