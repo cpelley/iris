@@ -99,7 +99,6 @@ class Test___init____validation(ThreeDimCube):
         self.cube = self.cube[:, ::-1]
         self.cube.data = self.data
         self.interpolator = LinearInterpolator(self.cube, ['latitude'])
-
         expected = self.data[:, 0:1, :]
         result = self.interpolator([[0]])
         self.assertArrayEqual(result.data, expected)
