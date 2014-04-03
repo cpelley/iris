@@ -3158,12 +3158,8 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
             the number of scalar coordinates, if collapse_scalar is True.
 
         """
-        if isinstance(sample_points, dict):
-            sample_points = sample_points.items()
-
         coords, points = zip(*sample_points)
         interp = scheme.interpolator(self, coords)
-
         return interp(points, collapse_scalar=collapse_scalar)
 
 
