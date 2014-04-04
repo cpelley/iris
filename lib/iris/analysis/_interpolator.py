@@ -345,16 +345,8 @@ class LinearInterpolator(object):
             instance of the interpolated data.
 
         """
-<<<<<<< HEAD
-        points, final_shape, final_order = self._prepare_points(sample_points)
-        data_dims = data_dims or range(self._src_cube.ndim)
-=======
-        self._validate_sample_points(sample_points)
-
         dims = range(self._src_cube.ndim)
         data_dims = data_dims or dims
-        data_dtype = self._interpolated_dtype(data.dtype)
->>>>>>> Refactor to remove ndindex.
 
         if len(data_dims) != data.ndim:
             msg = 'Data being interpolated is not consistent with ' \
