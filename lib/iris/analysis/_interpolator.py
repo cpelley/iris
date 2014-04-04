@@ -322,12 +322,6 @@ class LinearInterpolator(object):
             self._src_points = [points[::-1] if is_decreasing else points
                                 for is_decreasing, points in pairs]
 
-    def _validate_sample_points(self, sample_points):
-        if len(sample_points) != len(self._src_coords):
-            msg = 'Expected sample points for {} coordinates, got {}.'
-            raise ValueError(msg.format(len(self._src_coords),
-                                        len(sample_points)))
-
     def _interpolated_dtype(self, dtype):
         """
         Determine the base dtype required by the underlying interpolator.
@@ -388,8 +382,6 @@ class LinearInterpolator(object):
             fundamental reason this must be the case.
 
         """
-        self._validate_sample_points(sample_points)
-
         points, final_shape, final_order = self._prepare_points(sample_points)
         data_dims = data_dims or range(self._src_cube.ndim)
 
@@ -485,7 +477,10 @@ class LinearInterpolator(object):
             the number of scalar coordinates, if collapse_scalar is True.
 
         """
-        self._validate_sample_points(sample_points)
+        if len(sample_points) != len(self._src_coords):
+            msg = 'Expected sample points for {} coordinates, got {}.'
+            raise ValueError(msg.format(len(self._src_coords),
+                                        len(sample_points)))
 
         data = self._src_cube.data
         # Interpolate the cube payload.
