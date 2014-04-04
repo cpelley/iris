@@ -27,9 +27,12 @@ from iris.util import remap_cube_dimensions
 
 
 _DEFAULT_DTYPE = np.float16
-_MODE_LINEAR = 'linear'
-_MODE_ERROR = 'error'
-_MODE_NAN = 'nan'
+
+_LINEAR_EXTRAPOLATION_MODES = {
+    'linear': (False, None),
+    'error': (True, None),
+    'nan': (False, np.nan)
+}
 
 
 def _extend_circular_coord_and_data(coord, data, coord_dim):
@@ -80,7 +83,7 @@ class LinearInterpolator(object):
 
 
     """
-    def __init__(self, src_cube, coords, extrapolation_mode=_MODE_LINEAR):
+    def __init__(self, src_cube, coords, extrapolation_mode='linear'):
         """
         blah ...
 
@@ -104,9 +107,10 @@ class LinearInterpolator(object):
         # Coordinates defining the dimensions to be interpolated.
         self._src_coords = []
         # The extrapolation mode.
+        if extrapolation_mode not in _LINEAR_EXTRAPOLATION_MODES:
+            msg = 'Extrapolation mode {!r} not supported.'
+            raise ValueError(msg.format(extrapolation_mode))
         self._mode = extrapolation_mode
-        if self._mode is None:
-            self._mode = _MODE_LINEAR
         # The point values defining the dimensions to be interpolated.
         self._src_points = []
         # The cube dimensions to be interpolated over.
@@ -166,25 +170,18 @@ class LinearInterpolator(object):
 
         if self._interpolator is None:
             # Cache the interpolator instance.
+            bounds_error, fill_value = _LINEAR_EXTRAPOLATION_MODES[self._mode]
             self._interpolator = _RegularGridInterpolator(self._src_points,
                                                           data,
                                                           bounds_error=False,
                                                           fill_value=None)
-        # Configure the underlying interpolator given
-        # the mode of extrapolation.
-        if self._mode == _MODE_LINEAR:
-            self._interpolator.bounds_error = False
-            self._interpolator.fill_value = None
-        elif self._mode == _MODE_ERROR:
-            self._interpolator.bounds_error = True
-        elif self._mode == _MODE_NAN:
-            self._interpolator.bounds_error = False
-            self._interpolator.fill_value = np.nan
+            # The constructor of the _RegularGridInterpolator class does
+            # some unnecessary checks on these values, so we set them
+            # afterwards instead. Sneaky. ;-)
+            self._interpolator.bounds_error = bounds_error
+            self._interpolator.fill_value = fill_value
         else:
-            msg = 'Extrapolation mode {!r} not supported.'
-            raise ValueError(msg.format(self._mode))
-
-        self._interpolator.values = data
+            self._interpolator.values = data
         return self._interpolator(coord_points)
 
     def _prepare_points(self, sample_points):
