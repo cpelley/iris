@@ -21,7 +21,7 @@ import numpy.ma as ma
 from numpy.lib.stride_tricks import as_strided
 
 from iris.analysis._interpolator_regular_grid import _RegularGridInterpolator
-from iris.coords import Coord, DimCoord, AuxCoord
+from iris.coords import DimCoord, AuxCoord
 import iris.cube
 
 
@@ -481,49 +481,38 @@ class LinearInterpolator(object):
         coord_mapping = {}
         dims_with_dim_coords = []
 
-        # Copy/interpolate the coordinates.
-        for coord in cube.dim_coords:
-            dim, = cube.coord_dims(coord)
-            if coord in self._src_coords:
-                new_points = sample_points[self._src_coords.index(coord)]
-                new_coord = construct_new_coord_given_points(coord, new_points)
-            elif set([dim]).intersection(set(self._interp_dims)):
-                # Interpolate the coordinate payload.
-                new_coord = self._resample_coord(sample_points, coord, [dim])
-            else:
-                new_coord = coord.copy()
-
-            # new_coord may no longer be a dim coord, so check we don't need
-            # to add it as an aux coord (thus leaving the dim anonymous).
-            if isinstance(new_coord, DimCoord) and dim is not None:
-                new_cube._add_unique_dim_coord(new_coord, dim)
-                dims_with_dim_coords.append(dim)
-            else:
-                new_cube._add_unique_aux_coord(new_coord, dim)
-            coord_mapping[id(coord)] = new_coord
-
-        for coord in cube.aux_coords:
+        def construct_new_coord(coord):
             dims = cube.coord_dims(coord)
-            if coord in self._src_coords:
+            try:
                 index = self._src_coords.index(coord)
                 new_points = sample_points[index]
                 new_coord = construct_new_coord_given_points(coord, new_points)
-                dims = [self._interp_dims[index]]
-            elif set(dims).intersection(set(self._interp_dims)):
-                # Interpolate the coordinate payload.
-                new_coord = self._resample_coord(sample_points, coord, dims)
-            else:
-                new_coord = coord.copy()
+                # isinstance not possible here as a dimension coordinate can be
+                # mapped to the aux coordinates of a cube.
+                if coord in cube.aux_coords:
+                    dims = [self._interp_dims[index]]
+            except ValueError:
+                if set(dims).intersection(set(self._interp_dims)):
+                    # Interpolate the coordinate payload.
+                    new_coord = self._resample_coord(sample_points, coord,
+                                                     dims)
+                else:
+                    new_coord = coord.copy()
+            return new_coord, dims
 
-            new_dims = dims
-
-            if (isinstance(new_coord, DimCoord) and len(new_dims) > 0
-                    and new_dims[0] not in dims_with_dim_coords):
-                new_cube._add_unique_dim_coord(new_coord, new_dims)
-                dims_with_dim_coords.append(new_dims[0])
+        def gen_new_cube():
+            if (isinstance(new_coord, DimCoord) and len(dims) > 0
+                    and dims[0] not in dims_with_dim_coords):
+                new_cube._add_unique_dim_coord(new_coord, dims)
+                dims_with_dim_coords.append(dims[0])
             else:
-                new_cube._add_unique_aux_coord(new_coord, new_dims)
+                new_cube._add_unique_aux_coord(new_coord, dims)
             coord_mapping[id(coord)] = new_coord
+
+        # Copy/interpolate the coordinates.
+        for coord in (cube.dim_coords + cube.aux_coords):
+            new_coord, dims = construct_new_coord(coord)
+            gen_new_cube()
 
         for factory in self._src_cube.aux_factories:
             new_cube.add_aux_factory(factory.updated(coord_mapping))
