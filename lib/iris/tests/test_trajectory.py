@@ -80,7 +80,7 @@ class TestTrajectory(tests.IrisTest):
         expected = y0 + ((y1 - y0) * ((359.584090412 - x0)/(x1 - x0)))
         trajectory_cube = iris.analysis.trajectory.interpolate(scube,
                                                                single_point) 
-        self.assertArrayAlmostEqual(trajectory_cube.data, expected)
+        self.assertArrayAllClose(trajectory_cube.data, expected, rtol=2.0e-7)
 
         # Extract a simple, axis-aligned trajectory that is similar to an indexing operation.
         # (It's not exactly the same because the source cube doesn't have regular spacing.)
@@ -113,11 +113,20 @@ class TestTrajectory(tests.IrisTest):
             {'grid_latitude': -0.0828, 'grid_longitude': 359.6606},
             {'grid_latitude': -0.0468, 'grid_longitude': 359.6246},
         ]
-        trajectory = iris.analysis.trajectory.Trajectory(waypoints, sample_count=100)
+        trajectory = iris.analysis.trajectory.Trajectory(waypoints, sample_count=20)
         sample_points = traj_to_sample_points(trajectory)
-        trajectory_cube = iris.analysis.trajectory.interpolate(cube,
-                                                               sample_points)
-        self.assertCML(trajectory_cube, ('trajectory', 'zigzag.cml'))
+        trajectory_cube = iris.analysis.trajectory.interpolate(
+            cube[0, 0], sample_points)
+        expected = np.array([287.95953369, 287.9190979, 287.95550537,
+                             287.93240356, 287.83850098, 287.87869263,
+                             287.90942383, 287.9463501, 287.74365234,
+                             287.68856812, 287.75588989, 287.54611206,
+                             287.48522949, 287.53356934, 287.60217285,
+                             287.43795776, 287.59701538, 287.52468872,
+                             287.45025635, 287.52716064], dtype=np.float32)
+
+        self.assertCML(trajectory_cube, ('trajectory', 'zigzag.cml'), checksum=False)
+        self.assertArrayAllClose(trajectory_cube.data, expected, rtol=2.0e-7)
 
         # Sanity check the results against a simple slice
         x = cube.coord('grid_longitude').points
@@ -125,7 +134,7 @@ class TestTrajectory(tests.IrisTest):
         plt.pcolormesh(x, y, cube[0, 0, :, :].data)
         x = trajectory_cube.coord('grid_longitude').points
         y = trajectory_cube.coord('grid_latitude').points
-        plt.scatter(x, y, c=trajectory_cube[0, 0, :].data)
+        plt.scatter(x, y, c=trajectory_cube.data)
         self.check_graphic()
 
     @tests.skip_data
