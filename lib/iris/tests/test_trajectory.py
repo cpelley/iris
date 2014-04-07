@@ -70,6 +70,18 @@ class TestTrajectory(tests.IrisTest):
                    ('grid_longitude', [359.57958984])])
         self.assertCML(single_point, ('trajectory', 'single_point.cml'))
 
+        # Pull out another point and test against a manually calculated result.
+        single_point = [['grid_latitude', [-0.1188]], ['grid_longitude', [359.584090412]]]
+        scube = cube[0, 0, 10:11, 4:6]
+        x0 = scube.coord('grid_longitude')[0].points
+        x1 = scube.coord('grid_longitude')[1].points
+        y0 = scube.data[0, 0]
+        y1 = scube.data[0, 1]
+        expected = y0 + ((y1 - y0) * ((359.584090412 - x0)/(x1 - x0)))
+        trajectory_cube = iris.analysis.trajectory.interpolate(scube,
+                                                               single_point) 
+        self.assertArrayAlmostEqual(trajectory_cube.data, expected)
+
         # Extract a simple, axis-aligned trajectory that is similar to an indexing operation.
         # (It's not exactly the same because the source cube doesn't have regular spacing.)
         waypoints = [
@@ -87,7 +99,8 @@ class TestTrajectory(tests.IrisTest):
         sample_points = traj_to_sample_points(trajectory)
         trajectory_cube = iris.analysis.trajectory.interpolate(cube,
                                                                sample_points)
-        self.assertCML(trajectory_cube, ('trajectory', 'constant_latitude.cml'))
+        self.assertCML(trajectory_cube, ('trajectory',
+                                         'constant_latitude.cml'))
 
         # Sanity check the results against a simple slice
         plt.plot(cube[0, 0, 10, :].data)

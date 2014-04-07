@@ -546,16 +546,29 @@ class TestNearestLinearInterpolRealData(tests.IrisTest):
     def test_2slices(self):
         r = iris.analysis.interpolate.linear(self.cube, [('latitude', 0.0), ('longitude', 0.0)])
         self.assertCML(r, ('analysis', 'interpolation', 'linear', 'real_2slices.cml'))
-    
+
     def test_circular(self):
-        r = iris.analysis.interpolate.linear(self.cube, [('longitude', 359.8)])
-        normalise_order(r)
-        self.assertCML(r, ('analysis', 'interpolation', 'linear', 'real_circular_2dslice.cml'))
-        
+        res = iris.analysis.interpolate.linear(self.cube,
+                                               [('longitude', 359.8)])
+        normalise_order(res)
+        expected = np.mean(np.concatenate(
+            [self.cube.data[..., 0][..., None],
+             self.cube.data[..., -1][..., None]], axis=2), axis=2)
+
+        lon_coord = self.cube.coord('longitude').points
+        expected = self.cube.data[..., 0] + \
+            ((self.cube.data[..., -1] - self.cube.data[..., 0]) *
+             (((360 - 359.8) - lon_coord[0]) /
+              ((360 - lon_coord[-1]) - lon_coord[0])))
+        self.assertArrayAllClose(res.data, expected, rtol=2.0e-7)
+
         # check that the values returned by lon 0 & 360 are the same...
         r1 = iris.analysis.interpolate.linear(self.cube, [('longitude', 360)])
         r2 = iris.analysis.interpolate.linear(self.cube, [('longitude', 0)])
         np.testing.assert_array_equal(r1.data, r2.data)
+
+        self.assertCML(res, ('analysis', 'interpolation', 'linear',
+                             'real_circular_2dslice.cml'), checksum=False)
 
 
 @tests.skip_data
