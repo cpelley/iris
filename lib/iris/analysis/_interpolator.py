@@ -21,7 +21,7 @@ import numpy.ma as ma
 from numpy.lib.stride_tricks import as_strided
 
 from iris.analysis._scipy_interpolate import _RegularGridInterpolator
-from iris.analysis.cartography import wrap_lons as wrap_points
+from iris.analysis.cartography import wrap_lons as wrap_circular_points
 from iris.coords import DimCoord, AuxCoord
 import iris.cube
 
@@ -161,11 +161,18 @@ class LinearInterpolator(object):
         for circular (1D) coordinates.
 
         """
-        # Map all the requested values into the range of the source
-        # data (centred over the centre of the source data to allow
-        # extrapolation where required).
-        for _, dim, _, _, _ in self._circulars:
-            data = _extend_circular_data(data, dim)
+        for (circular, modulus, index, dim, src_min, src_max) in self._circulars:
+            # Map all the requested values into the range of the source
+            # data (centred over the centre of the source data to allow
+            # extrapolation where required).
+            if circular or modulus:
+                offset = (src_max + src_min - modulus) * 0.5
+                points[:, index] = wrap_circular_points(points[:, index],
+                                                        offset, modulus)
+
+            # Also extend data if circular (as setup does for coord points).
+            if circular:
+                data = _extend_circular_data(data, dim)
 
         return points, data
 
@@ -293,13 +300,16 @@ class LinearInterpolator(object):
                 coord_points = coord_points[::-1]
 
             # Record info if coord is circular, and adjust points.
-            if getattr(coord, 'circular', False):
+            circular = getattr(coord, 'circular', False)
+            modulus = getattr(coord.units, 'modulus', 0)
+            if circular or modulus:
                 # Only DimCoords can be circular.
-                coord_points = _extend_circular_coord(coord, coord_points)
-                modulus = getattr(coord.units, 'modulus', 0)
-                self._circulars.append((index, coord_dims[0],
+                if circular:
+                    coord_points = _extend_circular_coord(coord, coord_points)
+                self._circulars.append((circular, modulus,
+                                        index, coord_dims[0],
                                         coord_points.min(),
-                                        coord_points.max(), modulus))
+                                        coord_points.max()))
 
             self._src_points.append(coord_points)
 
@@ -422,14 +432,6 @@ class LinearInterpolator(object):
 
         # Adjust for circularity.
         interp_points, data = self._account_for_circular(interp_points, data)
-
-        for index, coord in enumerate(self._src_coords):
-            modulus = getattr(coord.units, 'modulus', None)
-            if modulus is not None:
-                src_min, src_max = coord.points.min(), coord.points.max()
-                offset = (src_max + src_min - modulus) * 0.5
-                interp_points[:, index] = wrap_points(interp_points[:, index],
-                                                      offset, modulus)
 
         if interp_order != dims:
             # Transpose data in preparation for interpolation.
