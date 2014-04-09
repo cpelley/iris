@@ -45,6 +45,7 @@ class Test_linear__circular_wrapping(tests.IrisTest):
         cube = self._create_cube([-180, -90, 0, 90])
         samples = [('longitude', range(-360, 720, 45))]
         result = interpolate.linear(cube, samples, extrapolation_mode='nan')
+        import ipdb; ipdb.set_trace()
         normalise_order(result)
         self.assertCMLApproxData(result, ('analysis', 'interpolation',
                                           'linear', 'circular_wrapping',

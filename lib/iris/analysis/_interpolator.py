@@ -21,7 +21,7 @@ import numpy.ma as ma
 from numpy.lib.stride_tricks import as_strided
 
 from iris.analysis._scipy_interpolate import _RegularGridInterpolator
-from iris.analysis.cartography import wrap_lons as wrap_circular_points
+from iris.analysis.cartography import wrap_lons as wrap_points
 from iris.coords import DimCoord, AuxCoord
 import iris.cube
 
@@ -166,11 +166,6 @@ class LinearInterpolator(object):
         # extrapolation where required).
         for _, dim, _, _, _ in self._circulars:
             data = _extend_circular_data(data, dim)
-
-        for (index, _, src_min, src_max, modulus) in self._circulars:
-            offset = (src_max + src_min - modulus) * 0.5
-            points[:, index] = wrap_circular_points(points[:, index],
-                                                    offset, modulus)
 
         return points, data
 
@@ -427,6 +422,14 @@ class LinearInterpolator(object):
 
         # Adjust for circularity.
         interp_points, data = self._account_for_circular(interp_points, data)
+
+        for index, coord in enumerate(self._src_coords):
+            modulus = getattr(coord.units, 'modulus', None)
+            if modulus is not None:
+                src_min, src_max = coord.points.min(), coord.points.max()
+                offset = (src_max + src_min - modulus) * 0.5
+                interp_points[:, index] = wrap_points(interp_points[:, index],
+                                                      offset, modulus)
 
         if interp_order != dims:
             # Transpose data in preparation for interpolation.
