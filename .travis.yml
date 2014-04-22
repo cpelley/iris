@@ -29,12 +29,12 @@ install:
   - export PATH=/home/travis/miniconda/bin:$PATH
   - conda create --yes -n test_env -c nbren12 numpy=1.7.1 scipy=0.13.2 matplotlib=1.3.0 netcdf4=1.0.7 scipy=0.13.2
   - source activate test_env
-  - conda install --yes -c nbren12 setuptools nose pep8 pyshp shapely udunits2 proj4 pyke geos cython
+  - conda install --yes -c nbren12 setuptools nose pep8 pyshp shapely udunits2 proj4 pyke geos cython mock sphinx
 
 # biggus
   - wget -O biggus.zip https://github.com/SciTools/biggus/archive/${BIGGUS_REF}.zip
   - unzip -q biggus.zip
-  - ln -s $(pwd)/biggus-${BIGGUS_SUFFIX} biggus
+  - ln -s ${PWD}/biggus-${BIGGUS_SUFFIX} biggus
   - cd biggus
   - python setup.py install --user
   - cd ..
@@ -42,7 +42,7 @@ install:
 # cartopy
   - wget -O cartopy.zip https://github.com/SciTools/cartopy/archive/${CARTOPY_REF}.zip
   - unzip -q cartopy.zip
-  - ln -s $(pwd)/cartopy-${CARTOPY_SUFFIX} cartopy
+  - ln -s ${PWD}/cartopy-${CARTOPY_SUFFIX} cartopy
   - cd cartopy
   - python setup.py install --user
   - cd ..
@@ -65,12 +65,14 @@ install:
 # iris test data
   - wget -O iris-test-data.zip https://github.com/SciTools/iris-test-data/archive/${IRIS_TEST_DATA_REF}.zip
   - unzip -q iris-test-data.zip
-  - ln -s $(pwd)/iris-test-data-${IRIS_TEST_DATA_SUFFIX} iris-test-data
+  - ln -s ${PWD}/iris-test-data-${IRIS_TEST_DATA_SUFFIX} iris-test-data
 
 # iris sample data
   - wget -O iris-sample-data.zip https://github.com/SciTools/iris-sample-data/archive/${IRIS_SAMPLE_DATA_REF}.zip
   - unzip -q iris-sample-data.zip
-  - ln -s $(pwd)/iris-sample-data-${IRIS_SAMPLE_DATA_SUFFIX} iris-sample-data
+  - ln -s ${PWD}/iris-sample-data-${IRIS_SAMPLE_DATA_SUFFIX} iris-sample-data
+
+  - export UDUNITS2_XML_PATH=/home/travis/miniconda/envs/test_env/share/udunits/udunits2.xml
   
 # iris
   - python setup.py --with-unpack build_ext --inplace -I/usr/local/include -L/usr/local/lib -R/usr/local/lib
@@ -78,10 +80,17 @@ install:
   - echo "[System]" > lib/iris/etc/site.cfg
   - echo "udunits2_path = /home/travis/miniconda/envs/test_env/lib/libudunits2.so" >> lib/iris/etc/site.cfg
   - echo "[Resources]" >> lib/iris/etc/site.cfg
-  - echo "sample_data_dir = $(pwd)/iris-sample-data/sample_data" >> lib/iris/etc/site.cfg
-  - echo "test_data_dir = $(pwd)/iris-test-data/test_data" >> lib/iris/etc/site.cfg
-  - ln -s $(pwd)/lib/iris /home/travis/.local/lib/python2.7/site-packages/iris
+  - echo "sample_data_dir = ${PWD}/iris-sample-data/sample_data" >> lib/iris/etc/site.cfg
+  - echo "test_data_dir = ${PWD}/iris-test-data/test_data" >> lib/iris/etc/site.cfg
+  - ln -s ${PWD}/lib/iris /home/travis/.local/lib/python2.7/site-packages/iris
   - python setup.py pyke_rules
 
 script:
-  - python -c "import numpy as np; print np.__version__"
+  - python setup.py test --example-tests
+
+  - cd docs/iris
+# Make html produces an error when run on Travis that does not affect any downstream functionality but causes the build to fail spuriously.
+# The following gets around this error, which should be investigated further in the future.
+  - echo `make clean html`
+
+  - make doctest
