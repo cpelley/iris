@@ -23,7 +23,9 @@ install:
   - export IRIS_SAMPLE_DATA_SUFFIX=$(echo "${IRIS_SAMPLE_DATA_REF}" | sed "s/^v//")
 
   - deactivate
-  - sudo apt-get install graphviz
+# libjpeg62 Dependency of pillow (PIL) - not on ubuntu by default on +12.04
+  - sudo apt-get install libjpeg62
+  - sudo apt-get install graphviz libjpeg62
   - wget http://repo.continuum.io/miniconda/Miniconda-3.3.0-Linux-x86_64.sh
   - chmod +x Miniconda-3.3.0-Linux-x86_64.sh
   - ./Miniconda-3.3.0-Linux-x86_64.sh -b
@@ -31,6 +33,7 @@ install:
   - conda create --yes -n test_env -c nbren12 numpy=1.7.1 scipy=0.13.2 matplotlib=1.3.0 netcdf4=1.0.7 scipy=0.13.2
   - source activate test_env
   - conda install --yes -c nbren12 setuptools nose pep8 pyshp shapely udunits2 proj4 pyke geos cython mock sphinx gdal pillow
+
 
 # grib api - build from source for now
   - sudo apt-get install libjasper-dev
@@ -94,6 +97,7 @@ install:
   - python setup.py std_names
   - echo "[System]" > lib/iris/etc/site.cfg
   - echo "udunits2_path = /home/travis/miniconda/envs/test_env/lib/libudunits2.so" >> lib/iris/etc/site.cfg
+  - echo "dot_path = /usr/bin/dot" >> lib/iris/etc/site.cfg
   - echo "[Resources]" >> lib/iris/etc/site.cfg
   - echo "sample_data_dir = ${PWD}/iris-sample-data/sample_data" >> lib/iris/etc/site.cfg
   - echo "test_data_dir = ${PWD}/iris-test-data/test_data" >> lib/iris/etc/site.cfg
