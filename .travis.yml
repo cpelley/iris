@@ -42,8 +42,9 @@ install:
   - CFLAGS="-fPIC" ./configure --with-jasper=/usr/local/lib --disable-fortran --enable-python
   - make
   - sudo make install
+  - cd python
   - python setup.py install
-  - cd ..
+  - cd ../..
 
 # biggus
   - wget -O biggus.zip https://github.com/SciTools/biggus/archive/${BIGGUS_REF}.zip
