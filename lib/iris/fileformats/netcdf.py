@@ -28,6 +28,7 @@ import collections
 import itertools
 import os
 import os.path
+import re
 import string
 import warnings
 
@@ -51,6 +52,9 @@ import iris.io
 import iris.unit
 import iris.util
 
+
+_re_conventions = '(?P<pre>.*)(?P<cf>CF-\d+(\.\d+)?)(?P<post>.*)'
+_CONVENTIONS_PATTERN = re.compile(_re_conventions, flags=re.IGNORECASE)
 
 # Show Pyke inference engine statistics.
 DEBUG = False
@@ -710,13 +714,28 @@ class Saver(object):
 
         # Add global attributes taking into account local_keys.
         global_attributes = {k: v for k, v in cube.attributes.iteritems() if k
-                             not in local_keys and k.lower() != 'conventions'}
+                             not in local_keys}
         self.update_global_attributes(global_attributes)
 
         if cf_profile_available:
             # Perform a CF patch of the dataset.
             iris.site_configuration['cf_patch'](profile, self._dataset,
                                                 cf_var_cube)
+
+    def _update_conventions_attribute(self, value):
+        existing_conventions = getattr(self._dataset, 'Conventions', '')
+        match = _CONVENTIONS_PATTERN.match(existing_conventions)
+        # Overide the CF conventions attribute with 'value'.
+        if match is not None:
+            value = (match.group('pre') + value + match.group('post'))
+        # Ensure that consistent delimiter as existing conventions.
+        elif existing_conventions is not None:
+            sep = ' '
+            if ',' in existing_conventions:
+                sep = ', '
+            value = sep.join([value, existing_conventions])
+
+        return value
 
     def update_global_attributes(self, attributes=None, **kwargs):
         """
@@ -738,6 +757,9 @@ class Saver(object):
                 setattr(self._dataset, attr_name, attributes[attr_name])
 
         for attr_name in sorted(kwargs):
+            if attr_name.lower() == 'conventions':
+                kwargs[attr_name] = self._update_conventions_attribute(
+                    kwargs[attr_name])
             setattr(self._dataset, attr_name, kwargs[attr_name])
 
     def _create_cf_dimensions(self, cube, dimension_names,
