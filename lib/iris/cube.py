@@ -2201,39 +2201,7 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
                 raise TypeError(msg)
         return coords
 
-    def slices(self, ref_to_slice, ordered=True):
-        """
-        Return an iterator of all subcubes given the coordinates or dimension
-        indices desired to be present in each subcube.
-
-        Args:
-
-        * ref_to_slice (string, coord, dimension index or a list of these):
-            Determines which dimensions will be returned in the subcubes (i.e.
-            the dimensions that are not iterated over).
-            A mix of input types can also be provided. They must all be
-            orthogonal (i.e. point to different dimensions).
-
-        Kwargs:
-
-        * ordered: if True, the order which the coords to slice or data_dims
-            are given will be the order in which they represent the data in
-            the resulting cube slices.  If False, the order will follow that of
-            the source cube.  Default is True.
-
-        Returns:
-            An iterator of subcubes.
-
-        For example, to get all 2d longitude/latitude subcubes from a
-        multi-dimensional cube::
-
-            for sub_cube in cube.slices(['longitude', 'latitude']):
-                print sub_cube
-
-        """
-        if not isinstance(ordered, bool):
-            raise TypeError("'ordered' argument to slices must be boolean.")
-
+    def _slice_index(self, ref_to_slice):
         # Required to handle a mix between types
         if not hasattr(ref_to_slice, '__iter__'):
             ref_to_slice = [ref_to_slice]
@@ -2267,6 +2235,58 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
         if len(set(dim_to_slice)) != len(dim_to_slice):
             msg = 'The requested coordinates are not orthogonal.'
             raise ValueError(msg)
+        return dim_to_slice
+
+    def slices_over(self, ref_to_slice, ordered=True):
+        if not isinstance(ordered, bool):
+            raise TypeError("'ordered' argument to slices must be boolean.")
+
+        dim_to_slice = self._slice_index(ref_to_slice)
+        dim_to_slice = list(set(range(self.ndim)).difference(set(dim_to_slice)))
+        # Create a list with of the shape of our data
+        dims_index = list(self.shape)
+
+        # Set the dimensions which have been requested to length 1
+        for d in dim_to_slice:
+            dims_index[d] = 1
+
+        return _SliceIterator(self, dims_index, dim_to_slice, ordered)
+        
+
+    def slices(self, ref_to_slice, ordered=True):
+        """
+        Return an iterator of all subcubes given the coordinates or dimension
+        indices desired to be present in each subcube.
+
+        Args:
+
+        * ref_to_slice (string, coord, dimension index or a list of these):
+            Determines which dimensions will be returned in the subcubes (i.e.
+            the dimensions that are not iterated over).
+            A mix of input types can also be provided. They must all be
+            orthogonal (i.e. point to different dimensions).
+
+        Kwargs:
+
+        * ordered: if True, the order which the coords to slice or data_dims
+            are given will be the order in which they represent the data in
+            the resulting cube slices.  If False, the order will follow that of
+            the source cube.  Default is True.
+
+        Returns:
+            An iterator of subcubes.
+
+        For example, to get all 2d longitude/latitude subcubes from a
+        multi-dimensional cube::
+
+            for sub_cube in cube.slices(['longitude', 'latitude']):
+                print sub_cube
+
+        """
+        if not isinstance(ordered, bool):
+            raise TypeError("'ordered' argument to slices must be boolean.")
+
+        dims_index = self._slice_index(ref_to_slice)
 
         # Create a list with of the shape of our data
         dims_index = list(self.shape)

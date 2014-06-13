@@ -815,5 +815,25 @@ class Test_regrid(tests.IrisTest):
         self.assertEqual(result, (scheme, cube, mock.sentinel.TARGET, cube))
 
 
+import iris.tests.stock as stock
+class Test_slices_over(tests.IrisTest):
+    def setUp(self):
+        # thingness / (1)                     (wibble: 2; -- : 3; -- : 4)
+        #      Dimension coordinates:
+        #           wibble                           x       -       -
+        #      Auxiliary coordinates:
+        #           bar                              -       x       x
+        #           foo                              -       x       x
+        #         self.cube = iris.tests.stock.simple_3d_w_multidim_coords()
+        self.cube = stock.simple_3d_w_multidim_coords()
+
+    def test_slice_single(self):
+        slices = self.cube.slices_over('wibble')
+        target = (self.cube[i] for i in xrange(self.cube.shape[0]))
+        import ipdb; ipdb.set_trace()
+        for res, tgt in zip(slices, target):
+            self.assertIs(res, tgt)
+
+
 if __name__ == '__main__':
     tests.main()
