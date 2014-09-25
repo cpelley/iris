@@ -184,7 +184,11 @@ def _sample_grid(src_coord_system, grid_x_coord, grid_y_coord):
         arrays.
 
     """
-    grid_x, grid_y = np.meshgrid(grid_x_coord.points, grid_y_coord.points)
+    # Create copies of the coordinate points as the coordinates themselves are
+    # read-only.
+    grid_x, grid_y = np.meshgrid(grid_x_coord.points.copy(),
+                                 grid_y_coord.points.copy(),
+                                 copy=False)
     # Skip the CRS transform if we can to avoid precision problems.
     if src_coord_system == grid_x_coord.coord_system:
         sample_grid_x = grid_x
@@ -327,8 +331,11 @@ def _regrid_bilinear_array(src_data, x_dim, y_dim, src_x_coord, src_y_coord,
 
     # Construct the target coordinate points array, suitable for passing to
     # the interpolator multiple times.
-    interpolator_coords = [sample_grid_x.astype(np.float64)[..., np.newaxis],
-                           sample_grid_y.astype(np.float64)[..., np.newaxis]]
+    xdtype = np.promote_types(sample_grid_x.dtype, src_x_coord.points.dtype)
+    ydtype = np.promote_types(sample_grid_y.dtype, src_y_coord.points.dtype)
+    interpolator_coords = [
+        sample_grid_x.astype(xdtype, copy=False)[..., np.newaxis],
+        sample_grid_y.astype(ydtype, copy=False)[..., np.newaxis]]
 
     # Map all the requested values into the range of the source
     # data (centred over the centre of the source data to allow
