@@ -1,0 +1,23 @@
+What's new in Iris 1.8
+**********************
+
+:Release: 1.8.0
+:Date: ???
+
+Iris 1.8 features
+=================
+
+* :func:`iris.cube.CubeList.concatenate` now works with biggus arrays and so
+  now supports concatenation of deferred data cubes.
+
+Bugs fixed
+==========
+
+Incompatible changes
+====================
+
+Deprecations
+============
+
+Documentation Changes
+=====================
