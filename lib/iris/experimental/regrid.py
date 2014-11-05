@@ -957,7 +957,6 @@ def _regrid_area_weighted_array(src_data, x_dim, y_dim,
                 x_0, x_1 = x_1, x_0
             x_bounds, x_indices = _cropped_bounds(src_x_bounds, x_0, x_1)
 
-            import pdb; pdb.set_trace()
             # Determine whether to mask element i, j based on overlap with
             # src.
             # If x_0 > x_1 then we want [0]->x_1 and x_0->[0] + mod in the case
