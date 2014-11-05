@@ -940,8 +940,10 @@ def _regrid_area_weighted_array(src_data, x_dim, y_dim,
     indices = [slice(None)] * new_data.ndim
 
     # Determine which grid bounds are within src bounds.
-    y_within_bounds = _within_bounds(src_y_bounds, y_0, y_1, grid_y_decreasing)
-    x_within_bounds = _within_bounds(src_x_bounds, x_0, x_1, grid_x_decreasing)
+    y_within_bounds = _within_bounds(src_y_bounds, grid_y_bounds,
+                                     grid_y_decreasing)
+    x_within_bounds = _within_bounds(src_x_bounds, grid_x_bounds,
+                                     grid_x_decreasing)
 
     # Simple for loop approach.
     for j, (y_0, y_1) in enumerate(grid_y_bounds):
