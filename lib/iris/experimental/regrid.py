@@ -593,7 +593,7 @@ def regrid_bilinear_rectilinear_src_and_grid(src, grid,
     return result
 
 
-def _within_bounds(bounds, lower, upper, orderswap):
+def _within_bounds(bounds, tgt_bounds, orderswap):
     """
     Return whether both lower and upper lie within the extremes
     of bounds.
@@ -603,10 +603,10 @@ def _within_bounds(bounds, lower, upper, orderswap):
     max_bound = np.max(bounds)
 
     # Swap upper-lower is necessary.
-    tmpupper = upper
     if orderswap is True:
-        upper = lower
-        lower = tmpupper
+        upper, lower = tgt_bounds.T
+    else:
+        lower, upper = tgt_bounds.T
 
     return (((lower <= max_bound) * (lower >= min_bound)) *
             ((upper <= max_bound) * (upper >= min_bound)))
@@ -955,6 +955,7 @@ def _regrid_area_weighted_array(src_data, x_dim, y_dim,
                 x_0, x_1 = x_1, x_0
             x_bounds, x_indices = _cropped_bounds(src_x_bounds, x_0, x_1)
 
+            import pdb; pdb.set_trace()
             # Determine whether to mask element i, j based on overlap with
             # src.
             # If x_0 > x_1 then we want [0]->x_1 and x_0->[0] + mod in the case
