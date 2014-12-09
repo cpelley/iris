@@ -24,6 +24,7 @@ from abc import ABCMeta, abstractmethod
 import warnings
 
 import cartopy.crs
+from util import approx_equal
 
 
 class CoordSystem(object):
@@ -36,8 +37,18 @@ class CoordSystem(object):
     grid_mapping_name = None
 
     def __eq__(self, other):
-        return (self.__class__ == other.__class__ and
-                self.__dict__ == other.__dict__)
+        result = True
+        if self.__class__ != other.__class__:
+            result = False
+        elif (len(set(self.__dict__.keys()).symmetric_difference(
+              set(other.__dict__.keys()))) is not 0):
+            result = False
+        else:
+            for key, value in self.__dict__.iteritems():
+                if not approx_equal(value, other.__dict__[key]):
+                    result = False
+                    break
+        return result
 
     def __ne__(self, other):
         # Must supply __ne__, Python does not defer to __eq__ for

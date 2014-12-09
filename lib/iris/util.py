@@ -393,14 +393,8 @@ def approx_equal(a, b, max_absolute_error=1e-10, max_relative_error=1e-10):
     finite precision of floating point numbers.
 
     """
-    # Deal with numbers close to zero
-    if abs(a - b) < max_absolute_error:
-        return True
-    # Ensure we get consistent results if "a" and "b" are supplied in the
-    # opposite order.
-    max_ab = max([a, b], key=abs)
-    relative_error = abs(a - b) / max_ab
-    return relative_error < max_relative_error
+    return np.allclose(a, b, rtol=max_relative_error,
+                       atol=max_absolute_error)
 
 
 def between(lh, rh, lh_inclusive=True, rh_inclusive=True):
