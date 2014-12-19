@@ -35,8 +35,82 @@ import warnings
 import numpy as np
 import numpy.ma as ma
 
+import biggus
 import iris
 import iris.exceptions
+
+
+def gen_regular_target(cube, ref_cube, shape):
+    """
+    Generate a regular grid target cube which has the same horizontal extent
+    as the source cube only with points defined by the supplied target_grid
+    coordinate system.
+
+    Args:
+
+    * cube:
+        An instance of :class:`iris.cube.Cube`, used for determining the extent
+        of the target grid.
+    * ref_cube:
+        An instance of :class:`iris.cube.Cube`, used for providing both
+        coordinate metadata and coordinate system of the resulting target grid.
+    * shape:
+        Tuple representing the shape of the resulting cube.
+
+    Returns:
+        An instance of :class:`iris.cube.Cube` with coordinates defining a
+        regular grid of extent matching the source and coordinate system
+        matching the reference cube provided.
+
+    """
+    src_x_coord, src_y_coord = (cube.coord(axis='x', dim_coords=True),
+                                cube.coord(axis='y', dim_coords=True))
+    dim_x, dim_y = (cube.coord_dims(src_x_coord)[0],
+                    cube.coord_dims(src_y_coord)[0])
+    dim_y, dim_x = np.argsort([dim_y, dim_x])
+
+    dtype = cube.lazy_data().dtype
+    data = biggus.ConstantArray(shape, dtype=dtype)
+    grid_cube = iris.cube.Cube(data)
+
+    src_x_points = getattr(src_x_coord, 'bounds', None) or src_x_coord.points
+    src_y_points = getattr(src_y_coord, 'bounds', None) or src_y_coord.points
+
+    # Determine bounding box around source data.
+    src_bounds = ((src_x_points.min(), src_x_points.max()),
+                  (src_y_points.min(), src_y_points.max()))
+    src_x_points = np.array([src_bounds[0][0], src_bounds[0][0],
+                             src_bounds[0][1], src_bounds[0][1]])
+    src_y_points = np.array([src_bounds[1][0], src_bounds[1][1],
+                             src_bounds[1][1], src_bounds[1][0]])
+
+    src_crs = src_x_coord.coord_system.as_cartopy_crs()
+    tgt_crs = ref_cube.coord(axis='x').coord_system.as_cartopy_crs()
+    xyz = tgt_crs.transform_points(src_crs, src_x_points, src_y_points)
+    x, y = xyz[..., 0], xyz[..., 1]
+
+    # Generate points by utilising bounds if available.
+    if src_x_coord.has_bounds():
+        x_bound = np.linspace(x.min(), x.max(), num=shape[dim_x]+1)
+        x_bounds = np.array([x_bound[:-1], x_bound[1:]]).T
+        grid_x = x_bounds.mean(axis=1)
+    else:
+        grid_x = np.linspace(x.min(), x.max(), num=shape[dim_x])
+
+    if src_y_coord.has_bounds():
+        y_bound = np.linspace(y.min(), y.max(), num=shape[dim_y]+1)
+        y_bounds = np.array([y_bound[:-1], y_bound[1:]]).T
+        grid_y = y_bounds.mean(axis=1)
+    else:
+        grid_y = np.linspace(y.min(), y.max(), num=shape[dim_y])
+
+    # Add these dimensions to our grid cube
+    grid_x_coord = ref_cube.coord(axis='x').copy(grid_x)
+    grid_y_coord = ref_cube.coord(axis='y').copy(grid_y)
+    grid_cube.add_dim_coord(grid_y_coord, dim_y)
+    grid_cube.add_dim_coord(grid_x_coord, dim_x)
+
+    return grid_cube
 
 
 def broadcast_weights(weights, array, dims):
