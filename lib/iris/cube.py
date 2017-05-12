@@ -2239,24 +2239,17 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
         try:
             first_slice = next(slice_gen)
         except StopIteration:
-            first_slice = None
+            first_slice = Ellipsis
 
         if self.has_lazy_data():
             cube_data = self._dask_array
         else:
             cube_data = self._numpy_array
 
-        if first_slice is not None:
-            data = cube_data[first_slice]
-        else:
-            data = copy.deepcopy(cube_data)
+        data = cube_data[first_slice]
 
         for other_slice in slice_gen:
             data = data[other_slice]
-
-        # We don't want a view of the data, so take a copy of it if it's
-        # not already our own.
-        data = copy.deepcopy(data)
 
         # We can turn a masked array into a normal array if it's full.
         if ma.isMaskedArray(data):

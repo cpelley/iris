@@ -662,6 +662,7 @@ class TestGuessBounds(tests.IrisTest):
         self.assertArrayEqual(coord.bounds, np.array([[-5., 5.], [5., 17.5], [17.5, 27.5], [27.5, 32.5]]))
         
         # if the points are not monotonic, then guess_bounds should fail
+        points = points.copy()
         points[2] = 32
         coord = iris.coords.AuxCoord.from_coord(coord)
         coord.points = points

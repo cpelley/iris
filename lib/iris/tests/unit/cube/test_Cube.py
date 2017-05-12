@@ -1670,6 +1670,22 @@ class Test_remove_metadata(tests.IrisTest):
                          [[self.b_cell_measure, (0, 1)]])
 
 
+class Test___getitem__lazy(tests.IrisTest):
+    def test_lazy_array(self):
+        data = np.arange(6).reshape(2, 3)
+        data = as_lazy_data(data)
+        cube = Cube(data)
+        cube2 = cube[1:]
+        self.assertTrue(cube2.has_lazy_data())
+        cube.data
+        self.assertTrue(cube2.has_lazy_data())
+
+    def test_ndarray(self):
+        cube = Cube(np.arange(6).reshape(2, 3))
+        cube2 = cube[1:]
+        self.assertIs(cube.data.base, cube2.data.base)
+
+
 class Test__getitem_CellMeasure(tests.IrisTest):
     def setUp(self):
         cube = Cube(np.arange(6).reshape(2, 3))
