@@ -36,6 +36,7 @@ import zlib
 import dask.array as da
 import numpy as np
 import numpy.ma as ma
+from scipy.stats import rankdata
 
 from iris._cube_coord_common import CFVariableMixin
 import iris._concatenate
@@ -2808,7 +2809,21 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
 
         def remap_aux_coord(coord_and_dims):
             coord, dims = coord_and_dims
-            return coord, tuple(dim_mapping[dim] for dim in dims)
+            new_order = tuple(dim_mapping[dim] for dim in dims)
+            new_rank = (rankdata(new_order, method='ordinal') - 1).tolist()
+            new_order_inc = tuple(set(new_order))
+
+            # Enforce increasing order for mapping.
+            points = coord.points.transpose(new_rank)
+            bounds = None
+            if coord.has_bounds():
+                bounds = coord.bounds.transpose(new_rank)
+
+            self.remove_coord(coord)
+            new_coord = coord.copy(points, bounds=bounds)
+            self.add_aux_coord(new_coord, new_order_inc)
+            return new_coord, new_order_inc
+
         self._aux_coords_and_dims = list(map(remap_aux_coord,
                                              self._aux_coords_and_dims))
 
