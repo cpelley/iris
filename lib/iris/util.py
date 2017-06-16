@@ -37,10 +37,41 @@ import time
 import cf_units
 import numpy as np
 import numpy.ma as ma
+from scipy.stats import rankdata
 
 from iris._deprecation import warn_deprecated
 import iris
 import iris.exceptions
+
+
+def sanitise_auxcoords(cube):                                                  
+    """                                                                        
+    Enforce increasing dimension mappings for all coordinates.                 
+                                                                               
+    Helper function to transpose multidimensional coordinates as neccessary to 
+    enforce increasing order dimension mappings.                               
+
+    Args:
+
+    * cube
+        An instance of :class:`iris.cube.Cube`
+                                                                               
+    """                                                                        
+    for coord in cube.aux_coords:                                              
+        if coord.ndim > 1:                                                     
+            dims = cube.coord_dims(coord)                                      
+            dim_rank = (rankdata(dims, method='ordinal') - 1).tolist()         
+            if dim_rank != range(coord.ndim):                                  
+                # Sanitise coordinate                                          
+                new_order = range(len(dim_rank))                               
+                transpose_indx = [dim_rank.index(val) for val in new_order]       
+                points = coord.points.transpose(transpose_indx)                
+                bounds = None                                                  
+                if coord.has_bounds():                                         
+                    bounds = coord.bounds.transpose(transpose_indx)            
+                new_coord = coord.copy(points, bounds=bounds)                  
+                cube.remove_coord(coord)                                       
+                cube.add_aux_coord(new_coord, sorted(dims))                    
 
 
 def broadcast_weights(weights, array, dims):
