@@ -2003,6 +2003,15 @@ class Test_transpose(tests.IrisTest):
         with self.assertRaisesRegexp(ValueError, exp_emsg):
             self.cube.transpose([1])
 
+    def test_transpose_multidim_coords(self):
+        # Ensure that multidimensional coordinates are transposed where
+        # necessary so that their dimension mapping remains ordered in the
+        # way they were in the source originally.
+        aux_coord = iris.coords.AuxCoord(np.zeros((2, 4)), long_name='bing')
+        self.cube.add_aux_coord(aux_coord, (1, 2))
+        self.cube.transpose((2, 0, 1))
+        self.assertEqual(self.cube.coord('bing').shape, (4, 2))
+
 
 if __name__ == '__main__':
     tests.main()
